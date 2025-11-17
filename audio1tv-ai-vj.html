@@ -1311,7 +1311,123 @@
             AI.energyResponse = parseInt(e.target.value);
         };
         
-        // AUDIO UPLOAD
+        // ═══════════════════════════════════════════════════════════════
+        // 🌐 AGENTCACHE.AI INTEGRATION
+        // ═══════════════════════════════════════════════════════════════
+        
+        const AGENTCACHE = {
+            apiKey: 'ac_demo_test123', // Replace with production key from agentcache.ai
+            baseUrl: 'https://agentcache.ai/api',
+            namespace: 'audio1tv'
+        };
+        
+        // Generate deterministic hash from audio buffer
+        async function hashAudioBuffer(audioBuffer) {
+            // Sample key points from audio to create fingerprint
+            const channelData = audioBuffer.getChannelData(0);
+            const sampleRate = audioBuffer.sampleRate;
+            const duration = audioBuffer.duration;
+            
+            // Sample 100 points across the audio for fingerprint
+            const samples = [];
+            for (let i = 0; i < 100; i++) {
+                const sampleIndex = Math.floor((i / 100) * channelData.length);
+                samples.push(Math.round(channelData[sampleIndex] * 1000) / 1000);
+            }
+            
+            // Create fingerprint object
+            const fingerprint = {
+                duration: Math.round(duration * 100) / 100,
+                sampleRate,
+                samples: samples.slice(0, 50), // First 50 samples
+                checksums: [
+                    Math.round(channelData[0] * 10000),
+                    Math.round(channelData[Math.floor(channelData.length / 2)] * 10000),
+                    Math.round(channelData[channelData.length - 1] * 10000)
+                ]
+            };
+            
+            // Generate SHA-256 hash
+            const text = JSON.stringify(fingerprint);
+            const msgBuffer = new TextEncoder().encode(text);
+            const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        }
+        
+        // Check AgentCache for existing audio analysis
+        async function checkAudioCache(fingerprint) {
+            try {
+                const payload = {
+                    provider: 'audio1tv',
+                    model: 'audio-analysis-v1',
+                    messages: [{ role: 'system', content: `audio_fingerprint:${fingerprint}` }],
+                    temperature: 0
+                };
+                
+                const response = await fetch(`${AGENTCACHE.baseUrl}/cache/get`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-API-Key': AGENTCACHE.apiKey,
+                        'X-Cache-Namespace': AGENTCACHE.namespace
+                    },
+                    body: JSON.stringify(payload)
+                });
+                
+                if (!response.ok) {
+                    return null; // Cache miss
+                }
+                
+                const data = await response.json();
+                if (data.hit) {
+                    return JSON.parse(data.response);
+                }
+                return null;
+            } catch (error) {
+                console.warn('AgentCache check failed:', error);
+                return null; // Fail gracefully
+            }
+        }
+        
+        // Store audio analysis in AgentCache
+        async function cacheAudioAnalysis(fingerprint, analysis) {
+            try {
+                const payload = {
+                    provider: 'audio1tv',
+                    model: 'audio-analysis-v1',
+                    messages: [{ role: 'system', content: `audio_fingerprint:${fingerprint}` }],
+                    temperature: 0,
+                    response: JSON.stringify(analysis),
+                    ttl: 60 * 60 * 24 * 30 // 30 days
+                };
+                
+                const response = await fetch(`${AGENTCACHE.baseUrl}/cache/set`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-API-Key': AGENTCACHE.apiKey,
+                        'X-Cache-Namespace': AGENTCACHE.namespace
+                    },
+                    body: JSON.stringify(payload)
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    console.log('✅ Cached audio analysis:', data);
+                } else {
+                    console.warn('Failed to cache analysis:', response.status);
+                }
+            } catch (error) {
+                console.warn('AgentCache set failed:', error);
+                // Fail gracefully - don't block user
+            }
+        }
+        
+        // ═══════════════════════════════════════════════════════════════
+        // 🎵 AUDIO UPLOAD
+        // ═══════════════════════════════════════════════════════════════
+        
         document.getElementById('uploadBox').onclick = () => document.getElementById('audioInput').click();
         document.getElementById('audioInput').onchange = (e) => {
             if (e.target.files[0]) {
@@ -1334,16 +1450,44 @@
             
             addAIThought('Audio loaded! Analyzing...');
             
-            // Detect beats, energy, structure
-            detectBeats(buffer);
-            analyzeEnergyCurve(buffer);
-            detectStructure();
+            // Check AgentCache for existing analysis
+            const audioFingerprint = hashAudioBuffer(buffer);
+            const cached = await checkAudioCache(audioFingerprint);
             
-            addAIThought(`Found ${STATE.beats.length} beats @ ${STATE.bpm} BPM`);
-            addAIThought(`Detected ${STATE.structure.length} song sections`);
-            
-            // Advanced audio pattern extraction
-            extractAudioPatterns(buffer);
+            if (cached) {
+                // Use cached analysis - instant!
+                STATE.beats = cached.beats;
+                STATE.bpm = cached.bpm;
+                STATE.energyCurve = cached.energyCurve;
+                STATE.structure = cached.structure;
+                STATE.audioPatterns = cached.audioPatterns;
+                
+                addAIThought(`⚡ Cache hit! Instant analysis (saved 5s)`);
+                addAIThought(`Found ${STATE.beats.length} beats @ ${STATE.bpm} BPM`);
+                
+                visualizeAudioPatterns();
+                document.getElementById('audioVizPanel').style.display = 'block';
+            } else {
+                // Cache miss - analyze and store
+                addAIThought('Analyzing audio (this may take a moment)...');
+                
+                detectBeats(buffer);
+                analyzeEnergyCurve(buffer);
+                detectStructure();
+                extractAudioPatterns(buffer);
+                
+                // Cache for future use
+                await cacheAudioAnalysis(audioFingerprint, {
+                    beats: STATE.beats,
+                    bpm: STATE.bpm,
+                    energyCurve: STATE.energyCurve,
+                    structure: STATE.structure,
+                    audioPatterns: STATE.audioPatterns
+                });
+                
+                addAIThought(`Found ${STATE.beats.length} beats @ ${STATE.bpm} BPM`);
+                addAIThought(`Detected ${STATE.structure.length} song sections`);
+            }
             
             document.getElementById('aiMoodText').textContent = 'Ready to VJ';
             document.getElementById('aiAction').textContent = 'Add images or let AI create';
