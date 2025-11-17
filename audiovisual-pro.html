@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audiovisual Art Studio Pro</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #000;
+            color: #fff;
+            overflow: hidden;
+        }
+        #canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+        #ui {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            pointer-events: none;
+            z-index: 10;
+        }
+        #upload-area {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border: 2px dashed rgba(102, 126, 234, 0.4);
+            border-radius: 20px;
+            padding: 3rem 4rem;
+            text-align: center;
+            pointer-events: all;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        #upload-area:hover { border-color: #667eea; background: rgba(102, 126, 234, 0.1); }
+        #upload-area.hidden { display: none; }
+        h1 { font-size: 2rem; margin-bottom: 1rem; 
+             background: linear-gradient(135deg, #667eea, #764ba2);
+             -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        #controls {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.9);
+            backdrop-filter: blur(10px);
+            padding: 1.5rem;
+            border-radius: 20px;
+            display: none;
+            z-index: 20;
+        }
+        #controls.show { display: block; }
+        .control-row {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+        .control-row:last-child { margin-bottom: 0; }
+        button {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border: none;
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+            font-weight: 600;
+        }
+        button:hover { transform: scale(1.05); filter: brightness(1.2); }
+        button.recording { background: #f44336; animation: pulse 1s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
+        .slider-group {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+        .slider-group label {
+            min-width: 100px;
+            font-size: 0.85rem;
+            opacity: 0.9;
+        }
+        input[type="range"] {
+            flex: 1;
+            height: 6px;
+            border-radius: 3px;
+            background: rgba(255, 255, 255, 0.2);
+            outline: none;
+            -webkit-appearance: none;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #667eea;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.5);
+        }
+        .value {
+            min-width: 40px;
+            text-align: right;
+            font-size: 0.85rem;
+            opacity: 0.8;
+        }
+        select {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            font-size: 0.9rem;
+        }
+        #status {
+            flex: 1;
+            text-align: center;
+            font-size: 0.9rem;
+            opacity: 0.8;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+    <div id="ui">
+        <div id="upload-area">
+            <h1>🎵 Audiovisual Art Studio Pro</h1>
+            <p>Drop an audio file to create stunning visuals</p>
+            <p style="opacity: 0.7; margin-top: 1rem; font-size: 0.9rem;">
+                Real-time GPU-accelerated shaders • Video recording • Customizable effects
+            </p>
+            <input type="file" id="fileInput" accept="audio/*" style="display: none;">
+        </div>
+    </div>
+    <div id="controls">
+        <div class="control-row">
+            <button id="playBtn">▶️ Play</button>
+            <button id="recordBtn">⏺️ Record</button>
+            <button id="downloadBtn" style="display:none;">💾 Download Video</button>
+            <select id="visualMode">
+                <option value="0">Cosmic Waves</option>
+                <option value="1">Frequency Rings</option>
+                <option value="2">Plasma Storm</option>
+                <option value="3">Particle Explosion</option>
+                <option value="4">Liquid Dreams</option>
+            </select>
+            <span id="status">Ready</span>
+        </div>
+        <div class="control-row">
+            <div class="slider-group">
+                <label>🎨 Color Shift</label>
+                <input type="range" id="colorShift" min="0" max="100" value="50">
+                <span class="value" id="colorShiftVal">50</span>
+            </div>
+            <div class="slider-group">
+                <label>⚡ Intensity</label>
+                <input type="range" id="intensity" min="0" max="100" value="70">
+                <span class="value" id="intensityVal">70</span>
+            </div>
+        </div>
+        <div class="control-row">
+            <div class="slider-group">
+                <label>🌊 Motion Speed</label>
+                <input type="range" id="speed" min="0" max="100" value="50">
+                <span class="value" id="speedVal">50</span>
+            </div>
+            <div class="slider-group">
+                <label>💫 Complexity</label>
+                <input type="range" id="complexity" min="0" max="100" value="60">
+                <span class="value" id="complexityVal">60</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const gl = canvas.getContext('webgl2', { preserveDrawingBuffer: true });
+        const uploadArea = document.getElementById('upload-area');
+        const fileInput = document.getElementById('fileInput');
+        const controls = document.getElementById('controls');
+        const playBtn = document.getElementById('playBtn');
+        const recordBtn = document.getElementById('recordBtn');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const status = document.getElementById('status');
+        const visualMode = document.getElementById('visualMode');
+
+        let audioContext, analyser, source, audioBuffer;
+        let isPlaying = false;
+        let mediaRecorder, recordedChunks = [];
+        let params = {
+            colorShift: 0.5,
+            intensity: 0.7,
+            speed: 0.5,
+            complexity: 0.6
+        };
+
+        // Setup sliders
+        ['colorShift', 'intensity', 'speed', 'complexity'].forEach(id => {
+            const slider = document.getElementById(id);
+            const valueSpan = document.getElementById(id + 'Val');
+            slider.addEventListener('input', (e) => {
+                const val = e.target.value;
+                valueSpan.textContent = val;
+                params[id] = val / 100;
+            });
+        });
+
+        // Resize canvas
+        function resize() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            gl.viewport(0, 0, canvas.width, canvas.height);
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        // Create multiple shader programs
+        const shaders = [
+            // Cosmic Waves
+            `
+            precision highp float;
+            uniform vec2 resolution;
+            uniform float time;
+            uniform float bass, mid, treble;
+            uniform float colorShift, intensity, speed, complexity;
+            
+            void main() {
+                vec2 uv = gl_FragCoord.xy / resolution.xy;
+                vec2 center = uv - 0.5;
+                float dist = length(center);
+                float angle = atan(center.y, center.x);
+                
+                float wave1 = sin(dist * 15.0 * complexity - time * speed * 3.0 + bass * 20.0);
+                float wave2 = sin(angle * 8.0 + time * speed * 2.0 + mid * 10.0);
+                float wave3 = sin(dist * 25.0 * complexity + angle * 6.0 - time * speed * 4.0);
+                
+                float pattern = (wave1 + wave2 + wave3) * intensity;
+                
+                vec3 color1 = vec3(0.4 + colorShift, 0.3, 0.8);
+                vec3 color2 = vec3(0.8, 0.2 + colorShift, 0.6);
+                vec3 color3 = vec3(0.2, 0.6 + colorShift, 0.9);
+                
+                vec3 col = mix(color1, color2, sin(pattern + bass * 2.0) * 0.5 + 0.5);
+                col = mix(col, color3, sin(pattern * 1.5 + treble) * 0.5 + 0.5);
+                
+                col *= (1.0 - dist * 0.8);
+                col += bass * 0.3;
+                
+                gl_FragColor = vec4(col, 1.0);
+            }
+            `,
+            // Frequency Rings
+            `
+            precision highp float;
+            uniform vec2 resolution;
+            uniform float time;
+            uniform float bass, mid, treble;
+            uniform float colorShift, intensity, speed, complexity;
+            
+            void main() {
+                vec2 uv = gl_FragCoord.xy / resolution.xy;
+                vec2 center = uv - 0.5;
+                float dist = length(center);
+                
+                float rings = 0.0;
+                for(float i = 0.0; i < 8.0; i++) {
+                    float offset = i * 0.1 * complexity;
+                    float ring = sin((dist + offset) * 50.0 - time * speed * 2.0);
+                    ring *= bass * (1.0 - i / 8.0) + mid * 0.5;
+                    rings += ring * intensity;
+                }
+                
+                vec3 col = vec3(
+                    0.5 + sin(time * speed + colorShift * 6.28 + bass * 2.0) * 0.5,
+                    0.5 + sin(time * speed * 1.3 + mid * 2.0) * 0.5,
+                    0.5 + sin(time * speed * 1.7 + treble) * 0.5
+                );
+                
+                col *= rings * 2.0;
+                col = pow(col, vec3(0.8));
+                
+                gl_FragColor = vec4(col, 1.0);
+            }
+            `,
+            // Plasma Storm
+            `
+            precision highp float;
+            uniform vec2 resolution;
+            uniform float time;
+            uniform float bass, mid, treble;
+            uniform float colorShift, intensity, speed, complexity;
+            
+            void main() {
+                vec2 uv = gl_FragCoord.xy / resolution.xy * 2.0 - 1.0;
+                uv.x *= resolution.x / resolution.y;
+                
+                float t = time * speed;
+                float plasma = 0.0;
+                plasma += sin(uv.x * 10.0 * complexity + t + bass * 5.0);
+                plasma += sin(uv.y * 10.0 * complexity + t * 1.3 + mid * 5.0);
+                plasma += sin((uv.x + uv.y) * 10.0 * complexity + t * 1.7);
+                plasma += sin(length(uv) * 10.0 * complexity + t * 2.0 + treble * 3.0);
+                
+                plasma *= intensity;
+                
+                vec3 col = vec3(
+                    sin(plasma + colorShift * 6.28) * 0.5 + 0.5,
+                    sin(plasma + 2.094 + colorShift * 6.28) * 0.5 + 0.5,
+                    sin(plasma + 4.189 + colorShift * 6.28) * 0.5 + 0.5
+                );
+                
+                col += bass * 0.2;
+                
+                gl_FragColor = vec4(col, 1.0);
+            }
+            `,
+            // Particle Explosion
+            `
+            precision highp float;
+            uniform vec2 resolution;
+            uniform float time;
+            uniform float bass, mid, treble;
+            uniform float colorShift, intensity, speed, complexity;
+            
+            float hash(vec2 p) {
+                return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+            }
+            
+            void main() {
+                vec2 uv = gl_FragCoord.xy / resolution.xy;
+                vec2 center = uv - 0.5;
+                
+                vec3 col = vec3(0.0);
+                float particles = complexity * 100.0;
+                
+                for(float i = 0.0; i < 100.0; i++) {
+                    if(i >= particles) break;
+                    
+                    float angle = hash(vec2(i, 0.0)) * 6.28;
+                    float dist = hash(vec2(i, 1.0));
+                    float ptime = time * speed + hash(vec2(i, 2.0)) * 10.0;
+                    
+                    vec2 pos = vec2(cos(angle), sin(angle)) * dist;
+                    pos += vec2(sin(ptime + bass * 3.0), cos(ptime * 1.3)) * 0.1;
+                    
+                    float d = length(center - pos);
+                    float brightness = 0.005 / d * intensity;
+                    brightness *= (bass + mid * 0.5 + 0.5);
+                    
+                    vec3 particleCol = vec3(
+                        sin(i * 0.1 + colorShift * 6.28 + time * speed) * 0.5 + 0.5,
+                        sin(i * 0.13 + mid) * 0.5 + 0.5,
+                        sin(i * 0.17 + treble) * 0.5 + 0.5
+                    );
+                    
+                    col += particleCol * brightness;
+                }
+                
+                gl_FragColor = vec4(col, 1.0);
+            }
+            `,
+            // Liquid Dreams
+            `
+            precision highp float;
+            uniform vec2 resolution;
+            uniform float time;
+            uniform float bass, mid, treble;
+            uniform float colorShift, intensity, speed, complexity;
+            
+            void main() {
+                vec2 uv = gl_FragCoord.xy / resolution.xy;
+                vec2 p = uv * 2.0 - 1.0;
+                p.x *= resolution.x / resolution.y;
+                
+                float t = time * speed * 0.5;
+                
+                for(float i = 0.0; i < 3.0; i++) {
+                    p.x += sin(p.y * complexity * (i + 1.0) + t + bass * 2.0) * intensity * 0.1;
+                    p.y += cos(p.x * complexity * (i + 1.0) + t * 1.3 + mid * 2.0) * intensity * 0.1;
+                }
+                
+                float len = length(p);
+                vec3 col = vec3(
+                    sin(len * 3.0 + t + colorShift * 6.28 + bass) * 0.5 + 0.5,
+                    sin(len * 4.0 + t * 1.3 + mid) * 0.5 + 0.5,
+                    sin(len * 5.0 + t * 1.7 + treble) * 0.5 + 0.5
+                );
+                
+                col = pow(col, vec3(1.5));
+                
+                gl_FragColor = vec4(col, 1.0);
+            }
+            `
+        ];
+
+        // Compile shaders
+        const programs = [];
+        const vertexShaderSource = `
+            attribute vec2 position;
+            void main() { gl_Position = vec4(position, 0.0, 1.0); }
+        `;
+        
+        const vertexShader = gl.createShader(gl.VERTEX_SHADER);
+        gl.shaderSource(vertexShader, vertexShaderSource);
+        gl.compileShader(vertexShader);
+
+        shaders.forEach((fragSource) => {
+            const fragmentShader = gl.createShader(gl.FRAGMENT_SHADER);
+            gl.shaderSource(fragmentShader, fragSource);
+            gl.compileShader(fragmentShader);
+            
+            const program = gl.createProgram();
+            gl.attachShader(program, vertexShader);
+            gl.attachShader(program, fragmentShader);
+            gl.linkProgram(program);
+            
+            programs.push({
+                program: program,
+                uniforms: {
+                    resolution: gl.getUniformLocation(program, 'resolution'),
+                    time: gl.getUniformLocation(program, 'time'),
+                    bass: gl.getUniformLocation(program, 'bass'),
+                    mid: gl.getUniformLocation(program, 'mid'),
+                    treble: gl.getUniformLocation(program, 'treble'),
+                    colorShift: gl.getUniformLocation(program, 'colorShift'),
+                    intensity: gl.getUniformLocation(program, 'intensity'),
+                    speed: gl.getUniformLocation(program, 'speed'),
+                    complexity: gl.getUniformLocation(program, 'complexity')
+                }
+            });
+        });
+
+        let currentProgram = programs[0];
+        visualMode.addEventListener('change', (e) => {
+            currentProgram = programs[parseInt(e.target.value)];
+        });
+
+        // Setup quad
+        const positions = new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]);
+        const buffer = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+        gl.bufferData(gl.ARRAY_BUFFER, positions, gl.STATIC_DRAW);
+
+        // Audio setup
+        function setupAudio(arrayBuffer) {
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            analyser = audioContext.createAnalyser();
+            analyser.fftSize = 2048;
+            
+            audioContext.decodeAudioData(arrayBuffer, (buffer) => {
+                audioBuffer = buffer;
+                uploadArea.classList.add('hidden');
+                controls.classList.add('show');
+                status.textContent = `Loaded • ${buffer.duration.toFixed(1)}s`;
+            });
+        }
+
+        function play() {
+            if (!audioBuffer) return;
+            
+            if (isPlaying) {
+                source.stop();
+                isPlaying = false;
+                playBtn.textContent = '▶️ Play';
+                return;
+            }
+            
+            source = audioContext.createBufferSource();
+            source.buffer = audioBuffer;
+            source.connect(analyser);
+            analyser.connect(audioContext.destination);
+            source.start();
+            isPlaying = true;
+            playBtn.textContent = '⏸️ Pause';
+            
+            source.onended = () => {
+                isPlaying = false;
+                playBtn.textContent = '▶️ Play';
+            };
+        }
+
+        // Recording
+        let captureStream;
+        function startRecording() {
+            if (!captureStream) {
+                captureStream = canvas.captureStream(60);
+                const audioStream = audioContext.createMediaStreamDestination();
+                analyser.connect(audioStream);
+                captureStream.addTrack(audioStream.stream.getAudioTracks()[0]);
+            }
+            
+            recordedChunks = [];
+            mediaRecorder = new MediaRecorder(captureStream, {
+                mimeType: 'video/webm;codecs=vp9',
+                videoBitsPerSecond: 8000000
+            });
+            
+            mediaRecorder.ondataavailable = (e) => {
+                if (e.data.size > 0) recordedChunks.push(e.data);
+            };
+            
+            mediaRecorder.onstop = () => {
+                const blob = new Blob(recordedChunks, { type: 'video/webm' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `audiovisual-${Date.now()}.webm`;
+                downloadBtn.onclick = () => a.click();
+                downloadBtn.style.display = 'block';
+                recordBtn.classList.remove('recording');
+                recordBtn.textContent = '⏺️ Record';
+            };
+            
+            mediaRecorder.start();
+            recordBtn.classList.add('recording');
+            recordBtn.textContent = '⏹️ Stop Recording';
+            play();
+        }
+
+        recordBtn.addEventListener('click', () => {
+            if (mediaRecorder && mediaRecorder.state === 'recording') {
+                mediaRecorder.stop();
+            } else {
+                startRecording();
+            }
+        });
+
+        // Render loop
+        function render() {
+            const dataArray = new Uint8Array(analyser ? analyser.frequencyBinCount : 256);
+            if (analyser) analyser.getByteFrequencyData(dataArray);
+            
+            const bass = dataArray.slice(0, 20).reduce((a, b) => a + b, 0) / 20 / 255;
+            const mid = dataArray.slice(20, 100).reduce((a, b) => a + b, 0) / 80 / 255;
+            const treble = dataArray.slice(100, 200).reduce((a, b) => a + b, 0) / 100 / 255;
+            
+            gl.useProgram(currentProgram.program);
+            
+            const posLoc = gl.getAttribLocation(currentProgram.program, 'position');
+            gl.enableVertexAttribArray(posLoc);
+            gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 0, 0);
+            
+            gl.uniform2f(currentProgram.uniforms.resolution, canvas.width, canvas.height);
+            gl.uniform1f(currentProgram.uniforms.time, performance.now() / 1000);
+            gl.uniform1f(currentProgram.uniforms.bass, bass);
+            gl.uniform1f(currentProgram.uniforms.mid, mid);
+            gl.uniform1f(currentProgram.uniforms.treble, treble);
+            gl.uniform1f(currentProgram.uniforms.colorShift, params.colorShift);
+            gl.uniform1f(currentProgram.uniforms.intensity, params.intensity);
+            gl.uniform1f(currentProgram.uniforms.speed, params.speed);
+            gl.uniform1f(currentProgram.uniforms.complexity, params.complexity);
+            
+            gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+            requestAnimationFrame(render);
+        }
+        render();
+
+        // File handling
+        uploadArea.addEventListener('click', () => fileInput.click());
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files[0]) {
+                const reader = new FileReader();
+                reader.onload = (e) => setupAudio(e.target.result);
+                reader.readAsArrayBuffer(e.target.files[0]);
+            }
+        });
+
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.style.borderColor = '#667eea';
+        });
+        
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            const file = e.dataTransfer.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (e) => setupAudio(e.target.result);
+                reader.readAsArrayBuffer(file);
+            }
+        });
+
+        playBtn.addEventListener('click', play);
+    </script>
+</body>
+</html>

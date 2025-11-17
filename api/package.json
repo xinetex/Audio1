@@ -1,0 +1,12 @@
+{
+  "name": "audio1tv-marketplace-api",
+  "version": "1.0.0",
+  "description": "Serverless API for Audio1.TV marketplace",
+  "type": "module",
+  "dependencies": {
+    "@neondatabase/serverless": "^0.9.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

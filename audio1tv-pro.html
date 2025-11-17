@@ -1,0 +1,1086 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AUDIO1.TV Pro - Frame-Accurate Music Video Studio</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/meyda/5.6.0/meyda.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        :root {
+            --bg-dark: #0a0a0f;
+            --bg-panel: #151520;
+            --bg-hover: #1e1e2e;
+            --border: #2a2a3e;
+            --border-light: #3a3a4e;
+            --accent-primary: #667eea;
+            --accent-secondary: #764ba2;
+            --accent-pink: #f093fb;
+            --accent-green: #00ff88;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-dark);
+            color: #fff;
+            overflow: hidden;
+            height: 100vh;
+        }
+        
+        .console {
+            display: grid;
+            grid-template-columns: 280px 1fr 350px;
+            grid-template-rows: 60px 1fr 220px;
+            height: 100vh;
+            gap: 1px;
+            background: var(--border);
+        }
+        
+        /* Header */
+        header {
+            grid-column: 1/-1;
+            background: var(--bg-panel);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 1.5rem;
+            border-bottom: 1px solid var(--border);
+        }
+        
+        .logo {
+            font-size: 1.1rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-pink));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .transport {
+            display: flex;
+            gap: 0.5rem;
+        }
+        
+        .transport button {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            border: 1px solid var(--border-light);
+            background: var(--bg-hover);
+            color: #fff;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.9rem;
+        }
+        
+        .transport button:hover {
+            background: var(--accent-primary);
+            transform: translateY(-1px);
+        }
+        
+        .transport button.play {
+            width: 44px;
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            border: none;
+        }
+        
+        .stats {
+            display: flex;
+            gap: 1rem;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+        }
+        
+        .stats span {
+            padding: 0.5rem 1rem;
+            background: var(--bg-hover);
+            border-radius: 8px;
+            border: 1px solid var(--border-light);
+        }
+        
+        /* Sidebars */
+        aside {
+            background: var(--bg-panel);
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .sidebar-header {
+            padding: 1rem;
+            border-bottom: 1px solid var(--border);
+            font-size: 0.85rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: rgba(255,255,255,0.7);
+        }
+        
+        .ingredient-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 0.5rem;
+            padding: 1rem;
+            overflow-y: auto;
+        }
+        
+        .ing-thumb {
+            aspect-ratio: 1;
+            border-radius: 8px;
+            overflow: hidden;
+            cursor: move;
+            border: 2px solid var(--border-light);
+            transition: all 0.2s;
+        }
+        
+        .ing-thumb:hover {
+            border-color: var(--accent-primary);
+            transform: scale(1.05);
+        }
+        
+        .ing-thumb img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        .env-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.5rem;
+            padding: 1rem;
+        }
+        
+        .env-card {
+            aspect-ratio: 1;
+            background: var(--bg-hover);
+            border: 2px solid var(--border-light);
+            border-radius: 12px;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+        
+        .env-card:hover {
+            border-color: var(--accent-primary);
+            transform: translateY(-2px);
+        }
+        
+        .env-card.active {
+            border-color: var(--accent-pink);
+            background: rgba(240, 147, 251, 0.1);
+        }
+        
+        .env-icon {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .env-name {
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        
+        /* Main Canvas */
+        main {
+            position: relative;
+            background: var(--bg-dark);
+            overflow: hidden;
+        }
+        
+        canvas {
+            width: 100%;
+            height: 100%;
+        }
+        
+        #ingredientLayer {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+        }
+        
+        .ingredient {
+            position: absolute;
+            transform-origin: center;
+        }
+        
+        .ingredient img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            filter: drop-shadow(0 0 20px rgba(0,0,0,0.5));
+        }
+        
+        .overlay {
+            position: absolute;
+            top: 1rem;
+            left: 1rem;
+            background: rgba(10,10,15,0.9);
+            backdrop-filter: blur(20px);
+            padding: 0.75rem 1rem;
+            border-radius: 12px;
+            border: 1px solid var(--border-light);
+            font-size: 0.8rem;
+            font-family: 'Courier New', monospace;
+        }
+        
+        .overlay div {
+            margin-bottom: 0.25rem;
+        }
+        
+        .overlay div:last-child {
+            margin-bottom: 0;
+        }
+        
+        .overlay-label {
+            color: rgba(255,255,255,0.5);
+        }
+        
+        .overlay-value {
+            color: var(--accent-pink);
+            font-weight: 600;
+        }
+        
+        /* Timeline */
+        .timeline {
+            grid-column: 1/-1;
+            background: var(--bg-panel);
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .timeline-header {
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .timeline-title {
+            font-size: 0.85rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: rgba(255,255,255,0.7);
+        }
+        
+        .timeline-tools {
+            display: flex;
+            gap: 0.5rem;
+        }
+        
+        .timeline-tools button {
+            padding: 0.4rem 0.8rem;
+            background: var(--bg-hover);
+            border: 1px solid var(--border-light);
+            border-radius: 6px;
+            color: rgba(255,255,255,0.7);
+            cursor: pointer;
+            font-size: 0.75rem;
+            transition: all 0.2s;
+        }
+        
+        .timeline-tools button:hover {
+            border-color: var(--accent-primary);
+            color: #fff;
+        }
+        
+        .timeline-tools button.active {
+            background: var(--accent-primary);
+            border-color: var(--accent-primary);
+            color: #fff;
+        }
+        
+        .timeline-content {
+            flex: 1;
+            position: relative;
+            overflow-x: auto;
+            overflow-y: hidden;
+        }
+        
+        .timeline-track {
+            height: 40px;
+            border-bottom: 1px solid var(--border);
+            position: relative;
+            background: repeating-linear-gradient(
+                90deg,
+                var(--bg-hover) 0px,
+                var(--bg-hover) 99px,
+                var(--border) 99px,
+                var(--border) 100px
+            );
+        }
+        
+        .clip {
+            position: absolute;
+            height: 32px;
+            top: 4px;
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            border-radius: 4px;
+            padding: 0.25rem 0.5rem;
+            font-size: 0.7rem;
+            cursor: move;
+            display: flex;
+            align-items: center;
+            white-space: nowrap;
+            overflow: hidden;
+            border: 1px solid rgba(255,255,255,0.2);
+            user-select: none;
+        }
+        
+        .clip.selected {
+            border-color: var(--accent-pink);
+            box-shadow: 0 0 10px var(--accent-pink);
+        }
+        
+        .clip-handle {
+            position: absolute;
+            width: 8px;
+            height: 100%;
+            top: 0;
+            cursor: ew-resize;
+            background: rgba(255,255,255,0.2);
+        }
+        
+        .clip-handle.left {
+            left: 0;
+            border-radius: 4px 0 0 4px;
+        }
+        
+        .clip-handle.right {
+            right: 0;
+            border-radius: 0 4px 4px 0;
+        }
+        
+        .clip-handle:hover {
+            background: var(--accent-pink);
+        }
+        
+        .playhead {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: var(--accent-pink);
+            pointer-events: none;
+            z-index: 100;
+        }
+        
+        .playhead::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 12px;
+            height: 12px;
+            background: var(--accent-pink);
+            border-radius: 50%;
+        }
+        
+        /* Inspector */
+        .inspector {
+            position: fixed;
+            bottom: 260px;
+            right: 20px;
+            background: rgba(0,0,0,0.95);
+            backdrop-filter: blur(20px);
+            padding: 1rem;
+            border-radius: 12px;
+            border: 1px solid var(--border-light);
+            z-index: 25;
+            display: none;
+        }
+        
+        .inspector.show {
+            display: block;
+        }
+        
+        .inspector h4 {
+            font-size: 0.85rem;
+            margin-bottom: 0.75rem;
+            color: var(--accent-pink);
+        }
+        
+        .inspector-row {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .inspector-row label {
+            font-size: 0.75rem;
+            color: rgba(255,255,255,0.7);
+            min-width: 60px;
+        }
+        
+        .inspector-row input {
+            flex: 1;
+            background: var(--bg-hover);
+            border: 1px solid var(--border-light);
+            color: #fff;
+            padding: 0.4rem;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-family: 'Courier New', monospace;
+        }
+        
+        .inspector-row input:focus {
+            outline: none;
+            border-color: var(--accent-primary);
+        }
+        
+        /* Upload */
+        .upload {
+            position: fixed;
+            inset: 0;
+            background: rgba(10,10,15,0.98);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        
+        .upload.hidden {
+            display: none;
+        }
+        
+        .upload-area {
+            background: var(--bg-panel);
+            border: 3px dashed var(--border-light);
+            border-radius: 20px;
+            padding: 4rem 6rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .upload-area:hover {
+            border-color: var(--accent-primary);
+            transform: scale(1.02);
+        }
+        
+        .upload-title {
+            font-size: 1.8rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-pink));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        button {
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            border: none;
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+        }
+    </style>
+</head>
+<body>
+    <div class="console">
+        <header>
+            <div class="logo">🎬 AUDIO1.TV Pro</div>
+            <div class="transport">
+                <button class="play" id="playBtn">▶</button>
+                <button id="aiBtn" title="AI Auto-Generate">🤖</button>
+            </div>
+            <div class="stats">
+                <span><span class="overlay-label">BPM</span> <span class="overlay-value" id="bpmDisplay">--</span></span>
+                <span><span class="overlay-label">TIME</span> <span class="overlay-value" id="timeDisplay">0:00</span></span>
+                <span><span class="overlay-label">FPS</span> <span class="overlay-value">30</span></span>
+            </div>
+        </header>
+        
+        <aside>
+            <div class="sidebar-header">🎨 Your Assets</div>
+            <div class="ingredient-grid" id="userAssets">
+                <div style="grid-column:1/-1;text-align:center;padding:2rem;color:rgba(255,255,255,0.3);">
+                    Upload or drag images/GIFs
+                </div>
+            </div>
+            <button onclick="document.getElementById('assetInput').click()" style="margin:1rem;">📁 Upload</button>
+            <input type="file" id="assetInput" accept="image/*,.gif" multiple style="display:none;">
+        </aside>
+        
+        <main>
+            <canvas id="canvas"></canvas>
+            <div id="ingredientLayer"></div>
+            <div class="overlay">
+                <div>🎬 <span class="overlay-label">Scene:</span> <span class="overlay-value" id="sceneDisplay">Neon City</span></div>
+                <div>📎 <span class="overlay-label">Clips:</span> <span class="overlay-value" id="clipCount">0</span></div>
+                <div>⚡ <span class="overlay-label">Energy:</span> <span class="overlay-value" id="energyDisplay">--</span></div>
+            </div>
+        </main>
+        
+        <aside>
+            <div class="sidebar-header">🌌 Environments</div>
+            <div class="env-grid" id="envGrid">
+                <div class="env-card active" data-env="neon">
+                    <div class="env-icon">🌃</div>
+                    <div class="env-name">Neon City</div>
+                </div>
+                <div class="env-card" data-env="space">
+                    <div class="env-icon">🌌</div>
+                    <div class="env-name">Space</div>
+                </div>
+                <div class="env-card" data-env="desert">
+                    <div class="env-icon">🏜️</div>
+                    <div class="env-name">Desert</div>
+                </div>
+                <div class="env-card" data-env="ocean">
+                    <div class="env-icon">🌊</div>
+                    <div class="env-name">Ocean</div>
+                </div>
+            </div>
+            <div class="sidebar-header">✨ AI Suggestions</div>
+            <div class="ingredient-grid" id="aiAssets"></div>
+        </aside>
+        
+        <section class="timeline">
+            <div class="timeline-header">
+                <div class="timeline-title">⏱️ Timeline</div>
+                <div class="timeline-tools">
+                    <button class="active" id="snapBtn">Snap: Beat</button>
+                    <button id="zoomInBtn">🔍+</button>
+                    <button id="zoomOutBtn">🔍-</button>
+                </div>
+            </div>
+            <div class="timeline-content">
+                <div id="tracks"></div>
+                <div class="playhead" id="playhead"></div>
+            </div>
+        </section>
+    </div>
+    
+    <div class="inspector" id="inspector">
+        <h4>📐 Clip Inspector</h4>
+        <div class="inspector-row">
+            <label>Start:</label>
+            <input type="text" id="clipStart" placeholder="0.00s">
+        </div>
+        <div class="inspector-row">
+            <label>Duration:</label>
+            <input type="text" id="clipDuration" placeholder="2.00s">
+        </div>
+        <div class="inspector-row">
+            <label>Frames:</label>
+            <input type="text" id="clipFrames" placeholder="60">
+        </div>
+        <div class="inspector-row">
+            <label>Effect:</label>
+            <select id="clipEffect" style="flex:1;">
+                <option>bounce</option>
+                <option>spin</option>
+                <option>float</option>
+                <option>explode</option>
+                <option>pulse</option>
+            </select>
+        </div>
+        <button onclick="applyInspectorChanges()" style="width:100%;margin-top:0.5rem;">Apply</button>
+    </div>
+    
+    <div class="upload" id="upload">
+        <div class="upload-area" id="uploadArea">
+            <div style="font-size:4rem;margin-bottom:1rem;">🎵</div>
+            <div class="upload-title">Drop Your Audio</div>
+            <div style="color:rgba(255,255,255,0.5);margin-top:0.5rem;">MP3, WAV, or any audio format</div>
+            <input type="file" id="audioInput" accept="audio/*" style="display:none;">
+        </div>
+    </div>
+
+    <script>
+        console.log('🎬 AUDIO1.TV Pro - Frame-Accurate Music Video Studio');
+        
+        const GIPHY_KEY = 'sXpGFDGZs0Dv1mmNFvYaGUvYwKX0PWIh';
+        const FPS = 30;
+        
+        const state = {
+            audioBuffer: null,
+            duration: 0,
+            bpm: 120,
+            beats: [],
+            clips: [],
+            selectedClip: null,
+            userAssets: [],
+            aiAssets: [],
+            isPlaying: false,
+            currentTime: 0,
+            pixelsPerSecond: 100,
+            snapMode: 'beat'
+        };
+        
+        // Three.js
+        const canvas = document.getElementById('canvas');
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, canvas.clientWidth/canvas.clientHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({canvas, antialias: true});
+        
+        function resize() {
+            renderer.setSize(canvas.clientWidth, canvas.clientHeight);
+            camera.aspect = canvas.clientWidth / canvas.clientHeight;
+            camera.updateProjectionMatrix();
+        }
+        resize();
+        window.addEventListener('resize', resize);
+        
+        scene.background = new THREE.Color(0x110033);
+        scene.fog = new THREE.Fog(0x110033, 10, 50);
+        
+        const light = new THREE.AmbientLight(0xffffff, 0.3);
+        scene.add(light);
+        
+        const mainLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        mainLight.position.set(5, 10, 5);
+        scene.add(mainLight);
+        
+        const box = new THREE.Mesh(
+            new THREE.BoxGeometry(0.5, 8, 0.5),
+            new THREE.MeshStandardMaterial({color: 0xff006e, emissive: 0xff006e, emissiveIntensity: 0.5})
+        );
+        box.position.set(-4, 2, -4);
+        scene.add(box);
+        
+        camera.position.set(0, 2, 15);
+        camera.lookAt(0, 0, 0);
+        
+        // Audio
+        let audioContext, analyser, source;
+        
+        document.getElementById('uploadArea').addEventListener('click', () => document.getElementById('audioInput').click());
+        document.getElementById('audioInput').addEventListener('change', e => {
+            if (e.target.files[0]) {
+                const reader = new FileReader();
+                reader.onload = e => processAudio(e.target.result);
+                reader.readAsArrayBuffer(e.target.files[0]);
+            }
+        });
+        
+        async function processAudio(arrayBuffer) {
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            analyser = audioContext.createAnalyser();
+            analyser.fftSize = 4096;
+            
+            const buffer = await audioContext.decodeAudioData(arrayBuffer);
+            state.audioBuffer = buffer;
+            state.duration = buffer.duration;
+            
+            document.getElementById('upload').classList.add('hidden');
+            
+            detectBeats(buffer);
+            initTimeline();
+            await loadAISuggestions();
+            
+            console.log('✅ Loaded:', buffer.duration+'s', state.beats.length, 'beats', state.bpm, 'BPM');
+        }
+        
+        function detectBeats(buffer) {
+            const data = buffer.getChannelData(0);
+            const sr = buffer.sampleRate;
+            const win = Math.floor(sr * 0.05);
+            let energy = [];
+            
+            for (let i = 0; i < data.length; i += win) {
+                let sum = 0;
+                for (let j = 0; j < win && i+j < data.length; j++) {
+                    sum += Math.abs(data[i+j]);
+                }
+                energy.push(sum / win);
+            }
+            
+            const beats = [];
+            for (let i = 2; i < energy.length - 2; i++) {
+                const avg = (energy[i-2] + energy[i-1] + energy[i+1] + energy[i+2]) / 4;
+                if (energy[i] > avg * 1.5 && energy[i] > 0.1) {
+                    const time = (i * win) / sr;
+                    if (beats.length === 0 || time - beats[beats.length-1] > 0.2) {
+                        beats.push(time);
+                    }
+                }
+            }
+            
+            state.beats = beats;
+            
+            if (beats.length > 1) {
+                const intervals = beats.slice(0, 20).map((b,i,arr) => i>0 ? b-arr[i-1] : 0).filter(v => v>0);
+                const avg = intervals.reduce((a,b)=>a+b,0) / intervals.length;
+                state.bpm = Math.round(60 / avg);
+                document.getElementById('bpmDisplay').textContent = state.bpm;
+            }
+        }
+        
+        async function loadAISuggestions() {
+            const queries = state.bpm > 140 ? 'rocket' : state.bpm > 120 ? 'dance' : 'chill';
+            try {
+                const res = await fetch(`https://api.giphy.com/v1/gifs/search?api_key=${GIPHY_KEY}&q=${queries}&limit=9&rating=g`);
+                const data = await res.json();
+                const grid = document.getElementById('aiAssets');
+                grid.innerHTML = '';
+                data.data.forEach(gif => {
+                    const asset = {id: gif.id, url: gif.images.fixed_height.url, type: 'gif'};
+                    state.aiAssets.push(asset);
+                    const thumb = document.createElement('div');
+                    thumb.className = 'ing-thumb';
+                    thumb.draggable = true;
+                    thumb.innerHTML = `<img src="${gif.images.fixed_height_small.url}">`;
+                    thumb.addEventListener('dragstart', e => {
+                        e.dataTransfer.setData('asset', JSON.stringify(asset));
+                    });
+                    grid.appendChild(thumb);
+                });
+            } catch(err) {
+                console.error('AI load failed:', err);
+            }
+        }
+        
+        // User assets
+        document.getElementById('assetInput').addEventListener('change', e => {
+            Array.from(e.target.files).forEach(file => {
+                const reader = new FileReader();
+                reader.onload = e => {
+                    const asset = {id: Date.now()+Math.random(), url: e.target.result, type: 'custom'};
+                    state.userAssets.push(asset);
+                    renderUserAssets();
+                };
+                reader.readAsDataURL(file);
+            });
+        });
+        
+        function renderUserAssets() {
+            const grid = document.getElementById('userAssets');
+            grid.innerHTML = '';
+            state.userAssets.forEach(asset => {
+                const thumb = document.createElement('div');
+                thumb.className = 'ing-thumb';
+                thumb.draggable = true;
+                thumb.innerHTML = `<img src="${asset.url}">`;
+                thumb.addEventListener('dragstart', e => {
+                    e.dataTransfer.setData('asset', JSON.stringify(asset));
+                });
+                grid.appendChild(thumb);
+            });
+        }
+        
+        function initTimeline() {
+            const tracks = document.getElementById('tracks');
+            tracks.innerHTML = '';
+            
+            for (let i = 0; i < 4; i++) {
+                const track = document.createElement('div');
+                track.className = 'timeline-track';
+                track.dataset.layer = i;
+                
+                // Beat markers
+                state.beats.forEach((t, idx) => {
+                    const m = document.createElement('div');
+                    m.style.position = 'absolute';
+                    m.style.left = (t * state.pixelsPerSecond) + 'px';
+                    m.style.top = '0';
+                    m.style.bottom = '0';
+                    m.style.width = '1px';
+                    m.style.background = idx%4===0 ? 'rgba(240,147,251,0.3)' : 'rgba(102,126,234,0.1)';
+                    track.appendChild(m);
+                });
+                
+                // Drag/drop
+                track.addEventListener('dragover', e => {
+                    e.preventDefault();
+                    track.style.background = 'rgba(102,126,234,0.15)';
+                });
+                track.addEventListener('dragleave', () => track.style.background = '');
+                track.addEventListener('drop', e => {
+                    e.preventDefault();
+                    track.style.background = '';
+                    const rect = track.getBoundingClientRect();
+                    const x = e.clientX - rect.left;
+                    const asset = JSON.parse(e.dataTransfer.getData('asset'));
+                    const time = x / state.pixelsPerSecond;
+                    const snapped = snapToGrid(time);
+                    addClip(i, asset, snapped, 2.0);
+                });
+                
+                tracks.appendChild(track);
+            }
+        }
+        
+        function snapToGrid(time) {
+            if (state.snapMode === 'beat' && state.beats.length > 0) {
+                return state.beats.reduce((p,c) => Math.abs(c-time) < Math.abs(p-time) ? c : p);
+            }
+            if (state.snapMode === 'frame') {
+                return Math.round(time * FPS) / FPS;
+            }
+            return Math.round(time * 10) / 10; // 0.1s
+        }
+        
+        function addClip(layer, asset, start, duration) {
+            const clip = {
+                id: Date.now(),
+                layer,
+                asset,
+                start,
+                duration,
+                effect: 'bounce'
+            };
+            state.clips.push(clip);
+            renderClip(clip);
+            document.getElementById('clipCount').textContent = state.clips.length;
+        }
+        
+        function renderClip(clip) {
+            const track = document.querySelector(`[data-layer="${clip.layer}"]`);
+            const el = document.createElement('div');
+            el.className = 'clip';
+            el.dataset.id = clip.id;
+            el.style.left = (clip.start * state.pixelsPerSecond) + 'px';
+            el.style.width = (clip.duration * state.pixelsPerSecond) + 'px';
+            el.textContent = clip.effect;
+            
+            // Left handle
+            const lh = document.createElement('div');
+            lh.className = 'clip-handle left';
+            lh.addEventListener('mousedown', e => {
+                e.stopPropagation();
+                startResize(clip, el, 'left', e);
+            });
+            el.appendChild(lh);
+            
+            // Right handle
+            const rh = document.createElement('div');
+            rh.className = 'clip-handle right';
+            rh.addEventListener('mousedown', e => {
+                e.stopPropagation();
+                startResize(clip, el, 'right', e);
+            });
+            el.appendChild(rh);
+            
+            // Select
+            el.addEventListener('click', () => selectClip(clip, el));
+            
+            // Delete
+            el.addEventListener('contextmenu', e => {
+                e.preventDefault();
+                state.clips = state.clips.filter(c => c.id !== clip.id);
+                el.remove();
+                document.getElementById('clipCount').textContent = state.clips.length;
+            });
+            
+            track.appendChild(el);
+        }
+        
+        function startResize(clip, el, side, e) {
+            const startX = e.clientX;
+            const startWidth = el.offsetWidth;
+            const startLeft = el.offsetLeft;
+            
+            const onMove = e => {
+                const delta = e.clientX - startX;
+                if (side === 'right') {
+                    const newWidth = Math.max(30, startWidth + delta);
+                    el.style.width = newWidth + 'px';
+                    clip.duration = newWidth / state.pixelsPerSecond;
+                } else {
+                    const newLeft = startLeft + delta;
+                    const newWidth = Math.max(30, startWidth - delta);
+                    el.style.left = newLeft + 'px';
+                    el.style.width = newWidth + 'px';
+                    clip.start = newLeft / state.pixelsPerSecond;
+                    clip.duration = newWidth / state.pixelsPerSecond;
+                }
+                updateInspector(clip);
+            };
+            
+            const onUp = () => {
+                document.removeEventListener('mousemove', onMove);
+                document.removeEventListener('mouseup', onUp);
+            };
+            
+            document.addEventListener('mousemove', onMove);
+            document.addEventListener('mouseup', onUp);
+        }
+        
+        function selectClip(clip, el) {
+            document.querySelectorAll('.clip').forEach(c => c.classList.remove('selected'));
+            el.classList.add('selected');
+            state.selectedClip = clip;
+            document.getElementById('inspector').classList.add('show');
+            updateInspector(clip);
+        }
+        
+        function updateInspector(clip) {
+            document.getElementById('clipStart').value = clip.start.toFixed(3) + 's';
+            document.getElementById('clipDuration').value = clip.duration.toFixed(3) + 's';
+            document.getElementById('clipFrames').value = Math.round(clip.duration * FPS);
+            document.getElementById('clipEffect').value = clip.effect;
+        }
+        
+        function applyInspectorChanges() {
+            if (!state.selectedClip) return;
+            const start = parseFloat(document.getElementById('clipStart').value);
+            const duration = parseFloat(document.getElementById('clipDuration').value);
+            state.selectedClip.start = isNaN(start) ? state.selectedClip.start : start;
+            state.selectedClip.duration = isNaN(duration) ? state.selectedClip.duration : duration;
+            state.selectedClip.effect = document.getElementById('clipEffect').value;
+            
+            // Update visual
+            const el = document.querySelector(`[data-id="${state.selectedClip.id}"]`);
+            if (el) {
+                el.style.left = (state.selectedClip.start * state.pixelsPerSecond) + 'px';
+                el.style.width = (state.selectedClip.duration * state.pixelsPerSecond) + 'px';
+                el.textContent = state.selectedClip.effect;
+            }
+        }
+        window.applyInspectorChanges = applyInspectorChanges;
+        
+        // Playback
+        document.getElementById('playBtn').addEventListener('click', () => {
+            if (!state.audioBuffer) return;
+            if (state.isPlaying) {
+                if (source) source.stop();
+                state.isPlaying = false;
+                document.getElementById('playBtn').textContent = '▶';
+                return;
+            }
+            source = audioContext.createBufferSource();
+            source.buffer = state.audioBuffer;
+            source.connect(analyser);
+            analyser.connect(audioContext.destination);
+            source.start();
+            state.isPlaying = true;
+            document.getElementById('playBtn').textContent = '⏸';
+            source.onended = () => {
+                state.isPlaying = false;
+                document.getElementById('playBtn').textContent = '▶';
+            };
+        });
+        
+        // AI Auto-generate
+        document.getElementById('aiBtn').addEventListener('click', () => {
+            if (!state.audioBuffer) return;
+            const assets = state.userAssets.length > 0 ? state.userAssets : state.aiAssets;
+            state.beats.forEach((t, idx) => {
+                if (idx % 4 === 0 && assets.length > 0) {
+                    const asset = assets[Math.floor(Math.random() * assets.length)];
+                    addClip(idx % 4, asset, t, 2.0);
+                }
+            });
+            alert(`🤖 AI added ${state.beats.length/4} clips!`);
+        });
+        
+        // Zoom
+        document.getElementById('zoomInBtn').addEventListener('click', () => {
+            state.pixelsPerSecond *= 1.5;
+            initTimeline();
+            state.clips.forEach(renderClip);
+        });
+        document.getElementById('zoomOutBtn').addEventListener('click', () => {
+            state.pixelsPerSecond /= 1.5;
+            initTimeline();
+            state.clips.forEach(renderClip);
+        });
+        
+        // Snap mode
+        document.getElementById('snapBtn').addEventListener('click', e => {
+            const modes = ['beat', 'frame', 'second'];
+            const idx = modes.indexOf(state.snapMode);
+            state.snapMode = modes[(idx + 1) % modes.length];
+            e.target.textContent = 'Snap: ' + state.snapMode;
+        });
+        
+        // Environments
+        document.querySelectorAll('.env-card').forEach(card => {
+            card.addEventListener('click', () => {
+                document.querySelectorAll('.env-card').forEach(c => c.classList.remove('active'));
+                card.classList.add('active');
+                document.getElementById('sceneDisplay').textContent = card.querySelector('.env-name').textContent;
+            });
+        });
+        
+        // Spawn ingredients
+        function spawnIngredient(clip) {
+            const el = document.createElement('div');
+            el.className = 'ingredient';
+            el.style.width = '150px';
+            el.style.height = '150px';
+            el.style.left = Math.random() * (window.innerWidth-150) + 'px';
+            el.style.top = Math.random() * (window.innerHeight-150) + 'px';
+            const img = document.createElement('img');
+            img.src = clip.asset.url;
+            el.appendChild(img);
+            document.getElementById('ingredientLayer').appendChild(el);
+            
+            const effects = {
+                bounce: () => anime({targets:el,opacity:[0,1],scale:[0,1],translateY:[0,-100,0],duration:800,easing:'easeOutBounce'}),
+                spin: () => anime({targets:el,opacity:[0,1],scale:[0,1.5],rotate:720,duration:1500}),
+                float: () => anime({targets:el,opacity:[0,1],scale:[0,1],translateY:-100,duration:2000,easing:'easeOutQuad'}),
+                explode: () => anime({targets:el,opacity:[0,1,0],scale:[0,2,0],rotate:360,duration:1000,easing:'easeOutExpo',complete:()=>el.remove()}),
+                pulse: () => anime({targets:el,opacity:[0,1],scale:[0.5,1.2,1],duration:600,easing:'easeOutElastic(1,.6)'})
+            };
+            (effects[clip.effect] || effects.bounce)();
+            if (clip.effect !== 'explode') {
+                setTimeout(() => el.remove(), clip.duration * 1000);
+            }
+        }
+        
+        // Main loop
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            if (state.isPlaying && analyser) {
+                const data = new Uint8Array(analyser.frequencyBinCount);
+                analyser.getByteFrequencyData(data);
+                const bass = data.slice(0,30).reduce((a,b)=>a+b,0) / 30 / 255;
+                
+                state.currentTime = audioContext.currentTime;
+                document.getElementById('playhead').style.left = (state.currentTime * state.pixelsPerSecond) + 'px';
+                
+                const m = Math.floor(state.currentTime/60);
+                const s = Math.floor(state.currentTime%60);
+                document.getElementById('timeDisplay').textContent = `${m}:${s.toString().padStart(2,'0')}`;
+                document.getElementById('energyDisplay').textContent = Math.round(bass*100)+'%';
+                
+                // Spawn clips
+                state.clips.forEach(c => {
+                    if (!c.spawned && state.currentTime >= c.start && state.currentTime < c.start+0.1) {
+                        c.spawned = true;
+                        spawnIngredient(c);
+                        setTimeout(() => c.spawned=false, 100);
+                    }
+                });
+                
+                box.material.emissiveIntensity = 0.5 + bass*0.5;
+                box.scale.set(1, 1+bass*0.2, 1);
+            }
+            
+            renderer.render(scene, camera);
+        }
+        animate();
+        
+        // Keyboard
+        document.addEventListener('keydown', e => {
+            if (e.code === 'Space' && state.audioBuffer) {
+                e.preventDefault();
+                document.getElementById('playBtn').click();
+            }
+        });
+    </script>
+</body>
+</html>

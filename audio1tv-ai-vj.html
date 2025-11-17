@@ -1,0 +1,2833 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AUDIO1.TV - AI VJ MODE 🤖</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@observablehq/plot@0.6"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        :root {
+            --neon-pink: #ff006e;
+            --neon-cyan: #00f5ff;
+            --neon-purple: #7209b7;
+            --neon-green: #00ff88;
+        }
+        
+        body {
+            font-family: 'Courier New', monospace;
+            background: #000;
+            color: #fff;
+            overflow: hidden;
+            height: 100vh;
+        }
+        
+        .studio {
+            display: grid;
+            grid-template-rows: 80px 1fr 200px;
+            height: 100vh;
+        }
+        
+        header {
+            background: linear-gradient(135deg, #1a0f2e, #0a0014);
+            border-bottom: 3px solid var(--neon-purple);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 2rem;
+        }
+        
+        .logo {
+            font-size: 1.8rem;
+            font-weight: 900;
+            background: linear-gradient(135deg, var(--neon-pink), var(--neon-cyan));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .ai-status {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 0.7rem 1.5rem;
+            background: rgba(114,9,183,0.2);
+            border: 2px solid var(--neon-purple);
+            border-radius: 15px;
+        }
+        
+        .ai-mood {
+            font-size: 2rem;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+        }
+        
+        .ai-text {
+            font-size: 0.9rem;
+            color: var(--neon-cyan);
+        }
+        
+        .btn-group {
+            display: flex;
+            gap: 1rem;
+        }
+        
+        .btn {
+            padding: 0.8rem 1.5rem;
+            background: linear-gradient(135deg, var(--neon-purple), var(--neon-pink));
+            border: none;
+            color: #fff;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: 700;
+            font-size: 0.9rem;
+            transition: all 0.3s;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 30px rgba(114,9,183,0.7);
+        }
+        
+        .btn.ai-mode {
+            background: linear-gradient(135deg, #00f5ff, #00ff88);
+            font-size: 1.1rem;
+            animation: glow 2s infinite;
+        }
+        
+        @keyframes glow {
+            0%, 100% { box-shadow: 0 0 20px rgba(0,245,255,0.5); }
+            50% { box-shadow: 0 0 40px rgba(0,245,255,1); }
+        }
+        
+        main {
+            position: relative;
+            background: #000;
+            overflow: hidden;
+        }
+        
+        canvas {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+        }
+        
+        #bgCanvas { z-index: 0; }
+        #canvas3d { z-index: 1; }
+        #imageCanvas { z-index: 2; }
+        #textCanvas { z-index: 3; }
+        
+        .ai-thoughts {
+            position: absolute;
+            top: 1rem;
+            left: 1rem;
+            background: rgba(0,0,0,0.9);
+            padding: 1rem;
+            border-radius: 12px;
+            border: 2px solid var(--neon-cyan);
+            max-width: 400px;
+            z-index: 10;
+            backdrop-filter: blur(20px);
+        }
+        
+        .audio-viz-panel {
+            position: absolute;
+            bottom: 1rem;
+            left: 1rem;
+            background: rgba(0,0,0,0.95);
+            padding: 1rem;
+            border-radius: 12px;
+            border: 2px solid var(--neon-purple);
+            width: 500px;
+            z-index: 10;
+            backdrop-filter: blur(20px);
+        }
+        
+        .viz-title {
+            font-size: 0.85rem;
+            color: var(--neon-purple);
+            font-weight: 700;
+            margin-bottom: 0.8rem;
+            text-transform: uppercase;
+        }
+        
+        #audioPatternViz {
+            width: 100%;
+            height: 200px;
+            overflow: hidden;
+        }
+        
+        .pattern-metrics {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 0.8rem;
+            margin-top: 0.8rem;
+        }
+        
+        .metric {
+            text-align: center;
+        }
+        
+        .metric-value {
+            font-size: 1.5rem;
+            font-weight: 900;
+            color: var(--neon-cyan);
+        }
+        
+        .metric-label {
+            font-size: 0.65rem;
+            color: rgba(255,255,255,0.5);
+            text-transform: uppercase;
+        }
+        
+        .thought {
+            font-size: 0.85rem;
+            color: var(--neon-cyan);
+            margin-bottom: 0.5rem;
+            opacity: 0;
+            animation: fadeIn 0.5s forwards;
+        }
+        
+        @keyframes fadeIn {
+            to { opacity: 1; }
+        }
+        
+        .controls {
+            background: #1a0f2e;
+            border-top: 2px solid var(--neon-purple);
+            padding: 1.5rem;
+            display: grid;
+            grid-template-columns: 300px 1fr 200px;
+            gap: 2rem;
+        }
+        
+        .control-group label {
+            display: block;
+            font-size: 0.75rem;
+            color: rgba(255,255,255,0.6);
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+        }
+        
+        select, input[type="range"] {
+            width: 100%;
+            padding: 0.5rem;
+            background: #0a0014;
+            border: 2px solid var(--neon-purple);
+            color: var(--neon-cyan);
+            border-radius: 8px;
+        }
+        
+        .personality-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 0.5rem;
+        }
+        
+        .personality-btn {
+            padding: 0.6rem;
+            background: rgba(114,9,183,0.3);
+            border: 2px solid var(--neon-purple);
+            color: #fff;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            font-weight: 700;
+            transition: all 0.2s;
+        }
+        
+        .personality-btn:hover, .personality-btn.active {
+            background: var(--neon-purple);
+            transform: scale(1.05);
+        }
+        
+        .export-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 0.8rem;
+        }
+        
+        .quality-score {
+            font-size: 2.5rem;
+            font-weight: 900;
+            text-align: center;
+            background: linear-gradient(135deg, var(--neon-pink), var(--neon-cyan));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        /* INGREDIENTS PANEL */
+        .ingredients-panel {
+            position: fixed;
+            right: -450px;
+            top: 0;
+            width: 450px;
+            height: 100vh;
+            background: linear-gradient(135deg, #1a0f2e, #0a0014);
+            border-left: 3px solid var(--neon-cyan);
+            z-index: 2000;
+            transition: right 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            display: flex;
+            flex-direction: column;
+            box-shadow: -10px 0 40px rgba(0,245,255,0.3);
+        }
+        
+        .ingredients-panel.open {
+            right: 0;
+        }
+        
+        .ingredients-header {
+            padding: 1.5rem;
+            border-bottom: 2px solid var(--neon-purple);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .ingredients-title {
+            font-size: 1.5rem;
+            font-weight: 900;
+            color: var(--neon-cyan);
+        }
+        
+        .close-panel {
+            background: none;
+            border: 2px solid var(--neon-pink);
+            color: var(--neon-pink);
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 1.3rem;
+            line-height: 1;
+            transition: all 0.2s;
+        }
+        
+        .close-panel:hover {
+            background: var(--neon-pink);
+            color: #000;
+            transform: rotate(90deg);
+        }
+        
+        .ingredients-tabs {
+            display: flex;
+            border-bottom: 2px solid var(--neon-purple);
+        }
+        
+        .tab {
+            flex: 1;
+            padding: 1rem;
+            background: rgba(114,9,183,0.2);
+            border: none;
+            color: rgba(255,255,255,0.6);
+            cursor: pointer;
+            font-weight: 700;
+            font-size: 0.85rem;
+            transition: all 0.2s;
+        }
+        
+        .tab.active {
+            background: var(--neon-purple);
+            color: #fff;
+        }
+        
+        .ingredients-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1rem;
+        }
+        
+        .search-box {
+            position: relative;
+            margin-bottom: 1rem;
+        }
+        
+        .search-box input {
+            width: 100%;
+            padding: 0.8rem 1rem 0.8rem 2.5rem;
+            background: #0a0014;
+            border: 2px solid var(--neon-purple);
+            color: var(--neon-cyan);
+            border-radius: 12px;
+            font-size: 0.95rem;
+        }
+        
+        .search-box input:focus {
+            outline: none;
+            border-color: var(--neon-cyan);
+        }
+        
+        .search-icon {
+            position: absolute;
+            left: 0.8rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--neon-cyan);
+            font-size: 1.1rem;
+        }
+        
+        .staging-area {
+            background: rgba(114,9,183,0.1);
+            border: 2px dashed var(--neon-purple);
+            border-radius: 12px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            min-height: 120px;
+        }
+        
+        .staging-title {
+            font-size: 0.75rem;
+            color: rgba(255,255,255,0.6);
+            text-transform: uppercase;
+            margin-bottom: 0.8rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .ai-badge {
+            background: var(--neon-cyan);
+            color: #000;
+            padding: 0.2rem 0.5rem;
+            border-radius: 6px;
+            font-size: 0.65rem;
+            font-weight: 900;
+        }
+        
+        .staged-item {
+            background: rgba(0,0,0,0.5);
+            border: 2px solid var(--neon-purple);
+            border-radius: 8px;
+            padding: 0.8rem;
+            margin-bottom: 0.8rem;
+            display: flex;
+            align-items: center;
+            gap: 0.8rem;
+        }
+        
+        .staged-preview {
+            width: 60px;
+            height: 60px;
+            border-radius: 6px;
+            object-fit: cover;
+            border: 2px solid var(--neon-cyan);
+        }
+        
+        .staged-info {
+            flex: 1;
+        }
+        
+        .staged-name {
+            font-size: 0.85rem;
+            color: var(--neon-cyan);
+            font-weight: 700;
+            margin-bottom: 0.3rem;
+        }
+        
+        .staged-meta {
+            font-size: 0.7rem;
+            color: rgba(255,255,255,0.5);
+        }
+        
+        .staged-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+        
+        .mini-btn {
+            padding: 0.4rem 0.8rem;
+            background: var(--neon-purple);
+            border: none;
+            color: #fff;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.7rem;
+            font-weight: 700;
+            transition: all 0.2s;
+        }
+        
+        .mini-btn:hover {
+            transform: translateY(-2px);
+        }
+        
+        .mini-btn.add {
+            background: var(--neon-green);
+            color: #000;
+        }
+        
+        .mini-btn.remove {
+            background: rgba(255,0,0,0.6);
+        }
+        
+        .gif-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.8rem;
+        }
+        
+        .gif-item {
+            position: relative;
+            border-radius: 8px;
+            overflow: hidden;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: all 0.2s;
+        }
+        
+        .gif-item:hover {
+            border-color: var(--neon-pink);
+            transform: scale(1.05);
+        }
+        
+        .gif-item img {
+            width: 100%;
+            height: 150px;
+            object-fit: cover;
+        }
+        
+        .gif-add {
+            position: absolute;
+            bottom: 0.5rem;
+            right: 0.5rem;
+            background: var(--neon-green);
+            color: #000;
+            border: none;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            font-size: 1.2rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+        
+        .gif-item:hover .gif-add {
+            opacity: 1;
+        }
+        
+        .panel-toggle {
+            position: fixed;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: linear-gradient(135deg, var(--neon-cyan), var(--neon-green));
+            border: none;
+            color: #000;
+            padding: 1rem 0.5rem;
+            border-radius: 12px 0 0 12px;
+            cursor: pointer;
+            font-weight: 900;
+            font-size: 0.9rem;
+            z-index: 1999;
+            box-shadow: -5px 0 20px rgba(0,245,255,0.5);
+            transition: all 0.3s;
+        }
+        
+        .panel-toggle:hover {
+            right: 0;
+        }
+        
+        .upload-screen {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.98);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        
+        .upload-screen.hidden { display: none; }
+        
+        .upload-box {
+            border: 4px dashed var(--neon-purple);
+            border-radius: 25px;
+            padding: 5rem 8rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .upload-box:hover {
+            border-color: var(--neon-cyan);
+            transform: scale(1.02);
+        }
+        
+        .upload-icon {
+            font-size: 6rem;
+            margin-bottom: 1rem;
+        }
+        
+        .upload-title {
+            font-size: 2.5rem;
+            font-weight: 900;
+            background: linear-gradient(135deg, var(--neon-pink), var(--neon-cyan));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+    </style>
+</head>
+<body>
+    <div class="studio">
+        <header>
+            <div class="logo">🤖 AUDIO1.TV - AI VJ MODE</div>
+            <div class="ai-status">
+                <div class="ai-mood" id="aiMood">🎵</div>
+                <div>
+                    <div class="ai-text" id="aiMoodText">Ready to create...</div>
+                    <div style="font-size:0.7rem;color:rgba(255,255,255,0.5);" id="aiAction">Awaiting audio</div>
+                </div>
+            </div>
+            <div class="btn-group">
+                <button class="btn" id="playBtn">▶ PLAY</button>
+                <button class="btn ai-mode" id="aiVjBtn">🤖 LET AI VJ</button>
+                <button class="btn" id="exportBtn">💾 EXPORT</button>
+            </div>
+        </header>
+        
+        <main>
+            <canvas id="bgCanvas"></canvas>
+            <canvas id="canvas3d"></canvas>
+            <canvas id="imageCanvas"></canvas>
+            <canvas id="textCanvas"></canvas>
+            
+            <div class="ai-thoughts" id="aiThoughts"></div>
+            
+            <div class="audio-viz-panel" id="audioVizPanel" style="display:none;">
+                <div class="viz-title">📊 AUDIO PATTERN ANALYSIS</div>
+                <div id="audioPatternViz"></div>
+                <div class="pattern-metrics">
+                    <div class="metric">
+                        <div class="metric-value" id="rhythmComplexity">--</div>
+                        <div class="metric-label">Rhythm</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-value" id="harmonicDensity">--</div>
+                        <div class="metric-label">Harmony</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-value" id="spectralCentroid">--</div>
+                        <div class="metric-label">Brightness</div>
+                    </div>
+                </div>
+            </div>
+        </main>
+        
+        <div class="controls">
+            <div>
+                <div class="control-group">
+                    <label>🎭 AI Personality</label>
+                    <div class="personality-grid">
+                        <button class="personality-btn active" data-personality="creative">🎨 Creative</button>
+                        <button class="personality-btn" data-personality="aggressive">⚡ Aggressive</button>
+                        <button class="personality-btn" data-personality="minimal">🎯 Minimal</button>
+                        <button class="personality-btn" data-personality="chaotic">🌀 Chaotic</button>
+                        <button class="personality-btn" data-personality="smooth">🌊 Smooth</button>
+                        <button class="personality-btn" data-personality="experimental">🔬 Experimental</button>
+                    </div>
+                </div>
+            </div>
+            
+            <div>
+                <div class="control-group">
+                    <label>🎨 Creative Freedom</label>
+                    <input type="range" id="creativeFreedom" min="0" max="100" value="80">
+                    <div style="display:flex;justify-content:space-between;font-size:0.7rem;color:rgba(255,255,255,0.5);margin-top:0.3rem;">
+                        <span>Safe</span>
+                        <span id="freedomVal">80%</span>
+                        <span>Wild</span>
+                    </div>
+                </div>
+                <div class="control-group" style="margin-top:1rem;">
+                    <label>⚡ Energy Response</label>
+                    <input type="range" id="energyResponse" min="0" max="100" value="70">
+                </div>
+            </div>
+            
+            <div class="export-panel">
+                <div style="font-size:0.75rem;color:rgba(255,255,255,0.6);text-align:center;">QUALITY SCORE</div>
+                <div class="quality-score" id="qualityScore">--</div>
+                <button class="btn" id="uploadAssetsBtn" style="font-size:0.8rem;">➕ ADD IMAGES</button>
+                <input type="file" id="assetUpload" accept="image/*" multiple style="display:none;">
+            </div>
+        </div>
+    </div>
+    
+    <button class="panel-toggle" id="panelToggle" onclick="toggleIngredientsPanel()">
+        🧪<br>I<br>N<br>G<br>R<br>E<br>D<br>I<br>E<br>N<br>T<br>S
+    </button>
+    
+    <div class="ingredients-panel" id="ingredientsPanel">
+        <div class="ingredients-header">
+            <div class="ingredients-title">🧪 INGREDIENTS</div>
+            <button class="close-panel" onclick="toggleIngredientsPanel()">×</button>
+        </div>
+        
+        <div class="ingredients-tabs">
+            <button class="tab active" data-tab="stage">🎭 STAGING</button>
+            <button class="tab" data-tab="marketplace">🛒 MARKET</button>
+            <button class="tab" data-tab="midjourney">🎨 MJ</button>
+            <button class="tab" data-tab="words">🎤 WORDS</button>
+            <button class="tab" data-tab="gifs">🎬 GIFs</button>
+            <button class="tab" data-tab="hashtags"># TAGS</button>
+        </div>
+        
+        <div class="ingredients-content">
+            <div class="tab-content" id="stageTab">
+                <div class="staging-area" id="stagingArea">
+                    <div class="staging-title">
+                        <span>AI PRE-STAGING</span>
+                        <span class="ai-badge">AI ANALYZING</span>
+                    </div>
+                    <div id="stagedItems"></div>
+                    <div style="text-align:center;color:rgba(255,255,255,0.4);font-size:0.8rem;" id="stagingHint">
+                        Drop assets here for AI analysis before adding to timeline
+                    </div>
+                </div>
+                
+                <button class="btn" onclick="addAllStaged()" style="width:100%;margin-top:1rem;">
+                    ✅ ADD ALL TO TIMELINE
+                </button>
+            </div>
+            
+            <div class="tab-content" id="marketplaceTab" style="display:none;">
+                <div style="margin-bottom:1rem;">
+                    <div style="font-size:0.9rem;color:var(--neon-cyan);font-weight:700;margin-bottom:0.3rem;">
+                        🛒 SLOP MARKETPLACE
+                    </div>
+                    <div style="font-size:0.7rem;color:rgba(255,255,255,0.4);margin-bottom:0.5rem;">
+                        Your ID: <span style="color:var(--neon-pink);font-family:monospace;font-size:0.65rem;">34b20bcf...</span>
+                    </div>
+                </div>
+                
+                <div class="search-box" style="margin-bottom:0.8rem;">
+                    <div class="search-icon">🔍</div>
+                    <input type="text" id="marketSearch" placeholder="Search marketplace..." 
+                           style="padding:0.8rem 1rem 0.8rem 2.5rem;" onkeyup="searchMarketplace()">
+                </div>
+                
+                <div style="display:flex;gap:0.4rem;flex-wrap:wrap;margin-bottom:0.8rem;overflow-x:auto;">
+                    <button class="tag-pill active" data-filter="all" onclick="filterMarketplace('all')">ALL</button>
+                    <button class="tag-pill" data-filter="midjourney" onclick="filterMarketplace('midjourney')">MJ</button>
+                    <button class="tag-pill" data-filter="dalle" onclick="filterMarketplace('dalle')">DALL·E</button>
+                    <button class="tag-pill" data-filter="stable-diffusion" onclick="filterMarketplace('stable-diffusion')">SD</button>
+                    <button class="tag-pill" data-filter="animated" onclick="filterMarketplace('animated')">Animated</button>
+                    <button class="tag-pill" data-filter="premium" onclick="filterMarketplace('premium')">💎</button>
+                </div>
+                
+                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0.4rem;margin-bottom:1rem;font-size:0.75rem;text-align:center;">
+                    <div style="background:rgba(114,9,183,0.2);border-radius:6px;padding:0.5rem;">
+                        <div style="font-weight:700;color:var(--neon-cyan);" id="marketAssets">...</div>
+                        <div style="color:rgba(255,255,255,0.4);font-size:0.65rem;">Assets</div>
+                    </div>
+                    <div style="background:rgba(114,9,183,0.2);border-radius:6px;padding:0.5rem;">
+                        <div style="font-weight:700;color:var(--neon-pink);" id="marketCreators">...</div>
+                        <div style="color:rgba(255,255,255,0.4);font-size:0.65rem;">Creators</div>
+                    </div>
+                    <div style="background:rgba(114,9,183,0.2);border-radius:6px;padding:0.5rem;">
+                        <div style="font-weight:700;color:var(--neon-cyan);" id="marketDownloads">...</div>
+                        <div style="color:rgba(255,255,255,0.4);font-size:0.65rem;">Downloads</div>
+                    </div>
+                </div>
+                
+                <button class="btn" onclick="showContributeModal()" style="width:100%;margin-bottom:0.8rem;background:linear-gradient(135deg,var(--neon-pink),var(--neon-purple));font-size:0.85rem;padding:0.7rem;">
+                    ⬆️ CONTRIBUTE YOUR SLOP
+                </button>
+                
+                <div id="marketplaceGrid" style="display:grid;grid-template-columns:repeat(2,1fr);gap:0.6rem;max-height:450px;overflow-y:auto;padding-right:0.3rem;">
+                    <div style="grid-column:1/-1;text-align:center;color:rgba(255,255,255,0.4);padding:2rem;font-size:0.85rem;">
+                        Loading marketplace...
+                    </div>
+                </div>
+            </div>
+            
+            <div class="tab-content" id="gifsTab" style="display:none;">
+                <div class="search-box">
+                    <div class="search-icon">🔍</div>
+                    <input type="text" id="gifSearch" placeholder="Search GIFs (e.g., music, party, vibes)">
+                </div>
+                <div class="gif-grid" id="gifGrid">
+                    <div style="grid-column:1/-1;text-align:center;color:rgba(255,255,255,0.5);padding:2rem;">
+                        Type a search term to find GIFs
+                    </div>
+                </div>
+            </div>
+            
+            <div class="tab-content" id="midjourneyTab" style="display:none;">
+                <div style="margin-bottom:1.5rem;">
+                    <div style="font-size:0.9rem;color:var(--neon-cyan);font-weight:700;margin-bottom:0.5rem;">
+                        🎨 IMPORT MIDJOURNEY IMAGES
+                    </div>
+                    <div style="font-size:0.75rem;color:rgba(255,255,255,0.5);margin-bottom:1rem;">
+                        Your gallery: <a href="https://midjourney.com/explore?user_id=34b20bcf-eb56-44fa-a1ab-f2ec751d34e1" 
+                           target="_blank" style="color:var(--neon-pink);">View on Midjourney</a>
+                    </div>
+                </div>
+                
+                <div class="search-box" style="margin-bottom:1rem;">
+                    <div class="search-icon">🔗</div>
+                    <input type="text" id="mjImageUrl" placeholder="Paste Midjourney image URL(s)" style="padding:0.8rem 1rem 0.8rem 2.5rem;">
+                </div>
+                <button class="btn" onclick="importMJImage()" style="width:100%;margin-bottom:1.5rem;">
+                    ⬇️ IMPORT IMAGE
+                </button>
+                
+                <div style="border-top:1px solid var(--border);padding-top:1rem;margin-bottom:1rem;">
+                    <div style="font-size:0.8rem;color:rgba(255,255,255,0.6);margin-bottom:0.8rem;">OR PASTE MULTIPLE URLS:</div>
+                    <textarea id="mjBatchUrls" 
+                              placeholder="Paste multiple image URLs (one per line)&#10;https://cdn.midjourney.com/...&#10;https://cdn.midjourney.com/..."
+                              style="width:100%;height:120px;background:#0a0014;border:2px solid var(--neon-purple);color:var(--neon-cyan);border-radius:8px;padding:0.8rem;font-family:monospace;font-size:0.85rem;resize:vertical;"></textarea>
+                    <button class="btn" onclick="importMJBatch()" style="width:100%;margin-top:0.8rem;">
+                        📦 BATCH IMPORT
+                    </button>
+                </div>
+                
+                <div style="background:rgba(114,9,183,0.2);border-radius:8px;padding:1rem;margin-top:1rem;">
+                    <div style="font-size:0.75rem;color:rgba(255,255,255,0.7);line-height:1.6;">
+                        <strong>💡 How to get image URLs:</strong><br>
+                        1. Go to <a href="https://midjourney.com/explore?user_id=34b20bcf-eb56-44fa-a1ab-f2ec751d34e1" 
+                           target="_blank" style="color:var(--neon-cyan);">your gallery</a><br>
+                        2. Right-click any image → "Copy Image Address"<br>
+                        3. Paste URL(s) above<br>
+                        4. Click import!<br><br>
+                        <strong>Pro tip:</strong> Use Discord bot commands like <code>/info</code> to get direct CDN links
+                    </div>
+                </div>
+                
+                <div id="mjImportedGrid" style="display:grid;grid-template-columns:repeat(2,1fr);gap:0.8rem;margin-top:1rem;"></div>
+            </div>
+            
+            <div class="tab-content" id="wordsTab" style="display:none;">
+                <div style="margin-bottom:1rem;">
+                    <div style="font-size:0.9rem;color:var(--neon-cyan);font-weight:700;margin-bottom:0.5rem;">
+                        🎤 EXTRACT WORDS FROM AUDIO
+                    </div>
+                    <div style="font-size:0.75rem;color:rgba(255,255,255,0.5);margin-bottom:1rem;">
+                        AI will transcribe speech and extract key words for visual effects
+                    </div>
+                    <button class="btn" onclick="extractAudioWords()" style="width:100%;margin-bottom:1rem;">
+                        🎤 TRANSCRIBE AUDIO
+                    </button>
+                </div>
+                
+                <div style="margin-bottom:1rem;">
+                    <div style="font-size:0.8rem;color:rgba(255,255,255,0.6);margin-bottom:0.5rem;">OR MANUALLY ADD WORDS:</div>
+                    <div class="search-box">
+                        <input type="text" id="manualWords" placeholder="Enter words (comma separated)" style="padding:0.8rem;">
+                    </div>
+                    <button class="btn" onclick="addManualWords()" style="width:100%;margin-top:0.5rem;">
+                        ➕ ADD WORDS
+                    </button>
+                </div>
+                
+                <div id="extractedWords"></div>
+                
+                <div style="margin-top:1.5rem;">
+                    <div style="font-size:0.8rem;color:rgba(255,255,255,0.6);margin-bottom:0.8rem;">TEXT EFFECTS:</div>
+                    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:0.5rem;">
+                        <button class="mini-btn" onclick="previewEffect('splash')">💦 Splash</button>
+                        <button class="mini-btn" onclick="previewEffect('explode')">💥 Explode</button>
+                        <button class="mini-btn" onclick="previewEffect('wave')">🌊 Wave</button>
+                        <button class="mini-btn" onclick="previewEffect('glitch')">⚡ Glitch</button>
+                        <button class="mini-btn" onclick="previewEffect('morph')">🔄 Morph</button>
+                        <button class="mini-btn" onclick="previewEffect('particles')">✨ Particles</button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="tab-content" id="hashtagsTab" style="display:none;">
+                <div class="search-box">
+                    <div class="search-icon">#</div>
+                    <input type="text" id="hashtagInput" placeholder="Enter hashtags (e.g., #party #vibes #music)">
+                </div>
+                <button class="btn" onclick="searchHashtagGIFs()" style="width:100%;margin-top:0.5rem;">
+                    🔍 FIND GIFs FROM HASHTAGS
+                </button>
+                <div style="margin-top:1.5rem;color:rgba(255,255,255,0.6);font-size:0.85rem;">
+                    <strong>Quick Tags:</strong>
+                    <div style="display:flex;flex-wrap:wrap;gap:0.5rem;margin-top:0.8rem;">
+                        <button class="mini-btn" onclick="quickHashtag('party')">🎉 party</button>
+                        <button class="mini-btn" onclick="quickHashtag('music')">🎵 music</button>
+                        <button class="mini-btn" onclick="quickHashtag('dance')">💃 dance</button>
+                        <button class="mini-btn" onclick="quickHashtag('vibes')">✨ vibes</button>
+                        <button class="mini-btn" onclick="quickHashtag('energy')">⚡ energy</button>
+                        <button class="mini-btn" onclick="quickHashtag('festival')">🎪 festival</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="upload-screen" id="uploadScreen">
+        <div class="upload-box" id="uploadBox">
+            <div class="upload-icon">🎵</div>
+            <div class="upload-title">DROP YOUR AUDIO</div>
+            <div style="color:rgba(255,255,255,0.5);margin-top:1rem;">MP3, WAV, or any audio format</div>
+            <input type="file" id="audioInput" accept="audio/*" style="display:none;">
+        </div>
+    </div>
+
+    <script>
+        console.log('🤖 AI VJ MODE - Full Creative Autonomy');
+        
+        // AI STATE
+        const AI = {
+            personality: 'creative',
+            creativeFreedom: 80,
+            energyResponse: 70,
+            mood: 'excited',
+            thoughts: [],
+            decisions: [],
+            quality: 0,
+            stagedAssets: [], // Pre-analyzed assets
+            extractedWords: [] // Words from audio
+        };
+        
+        const STATE = {
+            audioBuffer: null,
+            audioContext: null,
+            analyser: null,
+            source: null,
+            duration: 0,
+            bpm: 120,
+            beats: [],
+            energyCurve: [],
+            structure: [],
+            assets: [],
+            sequence: [],
+            isPlaying: false,
+            currentTime: 0,
+            wordAssets: [], // Dynamic text from audio
+            frameCount: 0, // Frame counter for throttling
+            audioPatterns: {
+                frequencyBands: [], // Bass, Mid, High over time
+                rhythmPattern: [], // Beat intensity patterns
+                melodicContour: [], // Pitch movement
+                spectralFlux: [], // Timbral changes
+                onsetStrength: [], // Attack strength
+                dynamicRange: 0,
+                harmonicComplexity: 0,
+                rhythmComplexity: 0,
+                spectralCentroid: 0
+            }
+        };
+        
+        // CANVAS SETUP
+        const bgCanvas = document.getElementById('bgCanvas');
+        const canvas3d = document.getElementById('canvas3d');
+        const imageCanvas = document.getElementById('imageCanvas');
+        const textCanvas = document.getElementById('textCanvas');
+        
+        const bgCtx = bgCanvas.getContext('2d');
+        const imageCtx = imageCanvas.getContext('2d');
+        const textCtx = textCanvas.getContext('2d');
+        
+        // THREE.JS SETUP
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, canvas3d.clientWidth/canvas3d.clientHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({canvas: canvas3d, alpha: true});
+        renderer.setClearColor(0x000000, 0);
+        camera.position.z = 5;
+        
+        const particles = [];
+        for (let i = 0; i < 300; i++) {
+            const geometry = new THREE.SphereGeometry(0.05, 8, 8);
+            const material = new THREE.MeshBasicMaterial({ color: Math.random() * 0xffffff });
+            const particle = new THREE.Mesh(geometry, material);
+            particle.position.set(
+                (Math.random() - 0.5) * 10,
+                (Math.random() - 0.5) * 10,
+                (Math.random() - 0.5) * 10
+            );
+            particles.push(particle);
+            scene.add(particle);
+        }
+        
+        function resizeCanvases() {
+            [bgCanvas, canvas3d, imageCanvas, textCanvas].forEach(c => {
+                c.width = c.clientWidth;
+                c.height = c.clientHeight;
+            });
+            camera.aspect = canvas3d.clientWidth / canvas3d.clientHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(canvas3d.clientWidth, canvas3d.clientHeight);
+        }
+        resizeCanvases();
+        window.addEventListener('resize', resizeCanvases);
+        
+        // AI PERSONALITY SYSTEM
+        const AI_PERSONALITIES = {
+            creative: {
+                moods: ['🎨', '✨', '🌈', '💫'],
+                easings: ['spring(1, 100, 10, 0)', 'easeOutElastic(1, 0.7)', 'easeOutBounce'],
+                durations: [500, 1500],
+                transitionLikelihood: { strobe: 0.3, glitch: 0.4, zoom: 0.6, fade: 0.3 },
+                thinkingStyle: 'artistic'
+            },
+            aggressive: {
+                moods: ['⚡', '🔥', '💥', '⚔️'],
+                easings: ['easeInExpo', 'spring(1, 150, 8, 0)', 'easeOutBounce'],
+                durations: [200, 600],
+                transitionLikelihood: { strobe: 0.9, glitch: 0.7, zoom: 0.8, fade: 0.1 },
+                thinkingStyle: 'intense'
+            },
+            minimal: {
+                moods: ['🎯', '⚪', '▫️', '🔷'],
+                easings: ['linear', 'easeInOutQuad'],
+                durations: [2000, 3000],
+                transitionLikelihood: { strobe: 0, glitch: 0, zoom: 0.2, fade: 0.9 },
+                thinkingStyle: 'precise'
+            },
+            chaotic: {
+                moods: ['🌀', '🎲', '💫', '🌪️'],
+                easings: ['easeInOutBack(3)', 'easeOutElastic(2, 0.3)', 'easeInBounce'],
+                durations: [100, 2000],
+                transitionLikelihood: { strobe: 0.6, glitch: 0.8, zoom: 0.5, fade: 0.3 },
+                thinkingStyle: 'unpredictable'
+            },
+            smooth: {
+                moods: ['🌊', '🌙', '💙', '☁️'],
+                easings: ['easeInOutSine', 'easeInOutCubic', 'easeOutQuad'],
+                durations: [1800, 3500],
+                transitionLikelihood: { strobe: 0, glitch: 0.1, zoom: 0.3, fade: 0.8 },
+                thinkingStyle: 'flowing'
+            },
+            experimental: {
+                moods: ['🔬', '🧪', '🎭', '🌌'],
+                easings: ['spring(2, 80, 15, 0)', 'easeInOutBack(5)', 'easeOutElastic(2, 0.4)'],
+                durations: [300, 2500],
+                transitionLikelihood: { strobe: 0.5, glitch: 0.6, zoom: 0.7, fade: 0.4 },
+                thinkingStyle: 'innovative'
+            }
+        };
+        
+        // AI THINKING & DECISION MAKING
+        function aiThink(context) {
+            const personality = AI_PERSONALITIES[AI.personality];
+            let thought = '';
+            
+            const { section, energy, bass, beatStrength } = context;
+            
+            // AI analyzes context and makes decisions
+            if (personality.thinkingStyle === 'artistic') {
+                if (energy > 0.8) thought = `High energy detected! I'll use elastic springs for dramatic effect.`;
+                else if (section === 'chorus') thought = `Chorus vibes... layering visuals with bounce transitions.`;
+                else thought = `Feeling ${section}... smooth flow with creative touches.`;
+            } else if (personality.thinkingStyle === 'intense') {
+                if (energy > 0.7) thought = `ENERGY SPIKE! Rapid cuts and strobe effects incoming!`;
+                else thought = `Building tension with aggressive transitions...`;
+            } else if (personality.thinkingStyle === 'precise') {
+                thought = `Calculated timing at ${section}. Minimal, clean transitions.`;
+            } else if (personality.thinkingStyle === 'unpredictable') {
+                const random = Math.random();
+                if (random < 0.3) thought = `Let's try something weird here...`;
+                else if (random < 0.6) thought = `Breaking the pattern! Random chaos mode.`;
+                else thought = `Unexpected transition in 3... 2... 1...`;
+            } else if (personality.thinkingStyle === 'flowing') {
+                thought = `Gentle waves... everything flows naturally at ${section}.`;
+            } else if (personality.thinkingStyle === 'innovative') {
+                thought = `Experimenting with ${Math.random() > 0.5 ? 'spring physics' : 'elastic morphing'}...`;
+            }
+            
+            addAIThought(thought);
+            
+            // Update AI mood
+            const moods = personality.moods;
+            document.getElementById('aiMood').textContent = moods[Math.floor(Math.random() * moods.length)];
+            
+            return thought;
+        }
+        
+        function addAIThought(thought) {
+            const container = document.getElementById('aiThoughts');
+            const thoughtEl = document.createElement('div');
+            thoughtEl.className = 'thought';
+            thoughtEl.textContent = '💭 ' + thought;
+            container.appendChild(thoughtEl);
+            
+            // Keep only last 5 thoughts
+            while (container.children.length > 5) {
+                container.removeChild(container.firstChild);
+            }
+            
+            AI.thoughts.push({ time: Date.now(), thought });
+        }
+        
+        // AI MAKES CREATIVE DECISIONS
+        function aiDecide(clip, section, energy, bass) {
+            const personality = AI_PERSONALITIES[AI.personality];
+            const freedom = AI.creativeFreedom / 100;
+            
+            // Choose easing
+            const easings = personality.easings;
+            let easing = easings[Math.floor(Math.random() * easings.length)];
+            
+            // Add randomness based on creative freedom
+            if (Math.random() < freedom * 0.3) {
+                easing = 'spring(' + (1 + Math.random() * 2) + ', ' + (80 + Math.random() * 70) + ', ' + (8 + Math.random() * 7) + ', 0)';
+            }
+            
+            // Choose duration
+            const [minDur, maxDur] = personality.durations;
+            let duration = minDur + Math.random() * (maxDur - minDur);
+            
+            // Adjust for energy
+            if (energy > 0.8) duration *= 0.6;
+            else if (energy < 0.3) duration *= 1.4;
+            
+            // Choose transition
+            const transitions = personality.transitionLikelihood;
+            let transition = 'fade';
+            const roll = Math.random();
+            
+            if (roll < transitions.strobe) transition = 'strobe';
+            else if (roll < transitions.strobe + transitions.glitch) transition = 'glitch';
+            else if (roll < transitions.strobe + transitions.glitch + transitions.zoom) transition = 'zoom';
+            
+            // Scale based on bass
+            const scale = [1, 1 + bass * (0.3 + freedom * 0.3)];
+            
+            // Rotation - more creative freedom = more rotation
+            const maxRotation = freedom * 0.5;
+            const rotate = (Math.random() * maxRotation) + 'turn';
+            
+            return { easing, duration, transition, scale, rotate };
+        }
+        
+        // AI VJ - FULL AUTONOMY
+        document.getElementById('aiVjBtn').onclick = () => {
+            if (!STATE.audioBuffer) return alert('Upload audio first!');
+            if (STATE.assets.length === 0) return alert('Add some images first!');
+            
+            addAIThought('Taking full creative control...');
+            document.getElementById('aiMoodText').textContent = 'Creating your masterpiece';
+            document.getElementById('aiAction').textContent = 'AI is directing...';
+            
+            // AI generates the full sequence with artistic decisions
+            generateAISequence();
+            
+            // Calculate quality score
+            calculateQualityScore();
+            
+            addAIThought('Sequence complete! Ready to play.');
+        };
+        
+        function generateAISequence() {
+            STATE.sequence = [];
+            const personality = AI_PERSONALITIES[AI.personality];
+            
+            STATE.structure.forEach(section => {
+                const sectionBeats = STATE.beats.filter(b => b >= section.start && b < section.end);
+                
+                // AI decides clip interval based on section and personality
+                let clipInterval = 2;
+                if (section.type === 'chorus') clipInterval = 1;
+                else if (section.type === 'intro' || section.type === 'outro') clipInterval = 4;
+                else if (section.type === 'verse') clipInterval = 2;
+                
+                // Creative freedom affects clip density
+                if (AI.creativeFreedom > 70) clipInterval = Math.max(1, clipInterval - 1);
+                
+                sectionBeats.filter((_, i) => i % clipInterval === 0).forEach((beat, idx) => {
+                    const asset = STATE.assets[Math.floor(Math.random() * STATE.assets.length)];
+                    const energy = getEnergyAt(beat);
+                    const bass = getBassAt(beat);
+                    
+                    // AI thinks about this moment
+                    if (idx % 8 === 0) {
+                        aiThink({ section: section.type, energy, bass, beatStrength: idx % 4 === 0 ? 'strong' : 'normal' });
+                    }
+                    
+                    // AI makes creative decision
+                    const decision = aiDecide(asset, section, energy, bass);
+                    
+                    STATE.sequence.push({
+                        asset: asset,
+                        start: beat,
+                        duration: decision.duration / 1000,
+                        transition: decision.transition,
+                        easing: decision.easing,
+                        scale: decision.scale,
+                        rotate: decision.rotate,
+                        section: section.type
+                    });
+                });
+            });
+            
+            console.log('🤖 AI created', STATE.sequence.length, 'clips with full autonomy');
+        }
+        
+        function getEnergyAt(time) {
+            const point = STATE.energyCurve.find(e => Math.abs(e.time - time) < 0.5);
+            return point ? point.normalized : 0.5;
+        }
+        
+        function getBassAt(time) {
+            return Math.random() * 0.3 + 0.2; // Simplified
+        }
+        
+        function calculateQualityScore() {
+            let score = 0;
+            
+            // Sequence complexity
+            score += Math.min(STATE.sequence.length * 2, 30);
+            
+            // Transition variety
+            const transitions = new Set(STATE.sequence.map(s => s.transition));
+            score += transitions.size * 5;
+            
+            // Asset variety
+            score += Math.min(STATE.assets.length * 3, 20);
+            
+            // Beat sync accuracy
+            score += 15;
+            
+            // Structure awareness
+            score += STATE.structure.length * 3;
+            
+            // Personality bonus
+            if (AI.personality === 'experimental' || AI.personality === 'creative') score += 10;
+            
+            // Creative freedom bonus
+            score += AI.creativeFreedom * 0.2;
+            
+            AI.quality = Math.min(Math.round(score), 100);
+            document.getElementById('qualityScore').textContent = AI.quality;
+            
+            // AI comments on quality
+            if (AI.quality > 85) addAIThought('This is fire! 🔥 Quality score: ' + AI.quality);
+            else if (AI.quality > 70) addAIThought('Solid work. Quality: ' + AI.quality);
+            else addAIThought('Good start, but I can do better...');
+        }
+        
+        // PERSONALITY SWITCHING
+        document.querySelectorAll('.personality-btn').forEach(btn => {
+            btn.onclick = () => {
+                document.querySelectorAll('.personality-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                AI.personality = btn.dataset.personality;
+                addAIThought(`Personality shift: ${AI.personality.toUpperCase()} mode activated!`);
+                console.log('🤖 AI Personality:', AI.personality);
+            };
+        });
+        
+        document.getElementById('creativeFreedom').oninput = (e) => {
+            AI.creativeFreedom = parseInt(e.target.value);
+            document.getElementById('freedomVal').textContent = AI.creativeFreedom + '%';
+        };
+        
+        document.getElementById('energyResponse').oninput = (e) => {
+            AI.energyResponse = parseInt(e.target.value);
+        };
+        
+        // AUDIO UPLOAD
+        document.getElementById('uploadBox').onclick = () => document.getElementById('audioInput').click();
+        document.getElementById('audioInput').onchange = (e) => {
+            if (e.target.files[0]) {
+                const reader = new FileReader();
+                reader.onload = (e) => processAudio(e.target.result);
+                reader.readAsArrayBuffer(e.target.files[0]);
+            }
+        };
+        
+        async function processAudio(arrayBuffer) {
+            STATE.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            STATE.analyser = STATE.audioContext.createAnalyser();
+            STATE.analyser.fftSize = 4096;
+            
+            const buffer = await STATE.audioContext.decodeAudioData(arrayBuffer);
+            STATE.audioBuffer = buffer;
+            STATE.duration = buffer.duration;
+            
+            document.getElementById('uploadScreen').classList.add('hidden');
+            
+            addAIThought('Audio loaded! Analyzing...');
+            
+            // Detect beats, energy, structure
+            detectBeats(buffer);
+            analyzeEnergyCurve(buffer);
+            detectStructure();
+            
+            addAIThought(`Found ${STATE.beats.length} beats @ ${STATE.bpm} BPM`);
+            addAIThought(`Detected ${STATE.structure.length} song sections`);
+            
+            // Advanced audio pattern extraction
+            extractAudioPatterns(buffer);
+            
+            document.getElementById('aiMoodText').textContent = 'Ready to VJ';
+            document.getElementById('aiAction').textContent = 'Add images or let AI create';
+        }
+        
+        function detectBeats(buffer) {
+            const data = buffer.getChannelData(0);
+            const sr = buffer.sampleRate;
+            const win = Math.floor(sr * 0.043);
+            
+            const energy = [];
+            for (let i = 0; i < data.length; i += win) {
+                let sum = 0;
+                for (let j = 0; j < win && i+j < data.length; j++) {
+                    sum += Math.pow(data[i+j], 2);
+                }
+                energy.push(sum / win);
+            }
+            
+            const beats = [];
+            for (let i = 5; i < energy.length - 5; i++) {
+                const localAvg = energy.slice(i-5, i).concat(energy.slice(i+1, i+6)).reduce((a,b) => a+b) / 10;
+                if (energy[i] > localAvg * 1.5 && energy[i] > 0.001) {
+                    const time = (i * win) / sr;
+                    if (beats.length === 0 || time - beats[beats.length-1] > 0.15) {
+                        beats.push(time);
+                    }
+                }
+            }
+            
+            STATE.beats = beats;
+            
+            if (beats.length > 10) {
+                const intervals = [];
+                for (let i = 1; i < Math.min(40, beats.length); i++) {
+                    intervals.push(beats[i] - beats[i-1]);
+                }
+                const avgInterval = intervals.reduce((a,b) => a+b) / intervals.length;
+                STATE.bpm = Math.round(60 / avgInterval);
+            }
+        }
+        
+        function analyzeEnergyCurve(buffer) {
+            const data = buffer.getChannelData(0);
+            const sr = buffer.sampleRate;
+            const chunkSize = Math.floor(sr * 0.5);
+            
+            STATE.energyCurve = [];
+            for (let i = 0; i < data.length; i += chunkSize) {
+                let sum = 0;
+                for (let j = 0; j < chunkSize && i+j < data.length; j++) {
+                    sum += Math.abs(data[i+j]);
+                }
+                const energy = sum / chunkSize;
+                STATE.energyCurve.push({
+                    time: i / sr,
+                    energy: energy,
+                    normalized: 0
+                });
+            }
+            
+            const maxEnergy = Math.max(...STATE.energyCurve.map(e => e.energy));
+            STATE.energyCurve.forEach(e => e.normalized = e.energy / maxEnergy);
+        }
+        
+        // INTELLIGENT AUDIO PATTERN EXTRACTION (OPTIMIZED)
+        function extractAudioPatterns(buffer) {
+            addAIThought('Analyzing audio patterns with DSP...');
+            
+            const data = buffer.getChannelData(0);
+            const sr = buffer.sampleRate;
+            const fftSize = 1024; // Reduced from 2048 for performance
+            const hopSize = fftSize; // Increased hop for less computation
+            
+            // Create offline context for FFT analysis
+            const patterns = {
+                frequencyBands: [],
+                rhythmPattern: [],
+                melodicContour: [],
+                spectralFlux: [],
+                onsetStrength: []
+            };
+            
+            // Analyze in windows (limit to avoid freezing)
+            const maxSamples = Math.min(data.length, sr * 60); // Max 60 seconds
+            let sampleCount = 0;
+            const maxIterations = 500; // Limit iterations
+            
+            for (let i = 0; i < maxSamples - fftSize && sampleCount < maxIterations; i += hopSize) {
+                const frame = data.slice(i, i + fftSize);
+                const time = i / sr;
+                sampleCount++;
+                
+                // Apply Hanning window
+                const windowed = frame.map((val, idx) => {
+                    return val * (0.5 - 0.5 * Math.cos(2 * Math.PI * idx / fftSize));
+                });
+                
+                // Compute FFT (simplified - using energy in bands)
+                const spectrum = computeSpectrum(windowed);
+                
+                // Extract frequency bands
+                const bass = spectrum.slice(0, 4).reduce((a,b) => a+b, 0) / 4;
+                const mid = spectrum.slice(4, 40).reduce((a,b) => a+b, 0) / 36;
+                const high = spectrum.slice(40, 200).reduce((a,b) => a+b, 0) / 160;
+                
+                patterns.frequencyBands.push({
+                    time: time,
+                    bass: bass,
+                    mid: mid,
+                    high: high
+                });
+                
+                // Compute spectral centroid (brightness)
+                let weightedSum = 0;
+                let sum = 0;
+                spectrum.forEach((val, idx) => {
+                    weightedSum += val * idx;
+                    sum += val;
+                });
+                const centroid = sum > 0 ? weightedSum / sum : 0;
+                
+                // Compute spectral flux (timbral change)
+                if (patterns.spectralFlux.length > 0) {
+                    const prevSpectrum = patterns.spectralFlux[patterns.spectralFlux.length - 1].spectrum;
+                    let flux = 0;
+                    for (let j = 0; j < Math.min(spectrum.length, prevSpectrum.length); j++) {
+                        const diff = spectrum[j] - prevSpectrum[j];
+                        flux += diff > 0 ? diff : 0;
+                    }
+                    patterns.spectralFlux.push({ time, flux, spectrum });
+                } else {
+                    patterns.spectralFlux.push({ time, flux: 0, spectrum });
+                }
+                
+                // Compute onset strength
+                const energy = frame.reduce((sum, val) => sum + val * val, 0);
+                patterns.onsetStrength.push({ time, strength: Math.sqrt(energy) });
+            }
+            
+            // Compute rhythm pattern complexity
+            const beatIntervals = [];
+            for (let i = 1; i < STATE.beats.length; i++) {
+                beatIntervals.push(STATE.beats[i] - STATE.beats[i-1]);
+            }
+            const intervalVariance = computeVariance(beatIntervals);
+            patterns.rhythmComplexity = Math.min(100, intervalVariance * 1000);
+            
+            // Compute harmonic complexity (spectral spread)
+            const centroids = patterns.spectralFlux.map((_, i) => {
+                let weightedSum = 0;
+                let sum = 0;
+                patterns.spectralFlux[i].spectrum.forEach((val, idx) => {
+                    weightedSum += val * idx;
+                    sum += val;
+                });
+                return sum > 0 ? weightedSum / sum : 0;
+            });
+            patterns.harmonicComplexity = Math.min(100, computeVariance(centroids));
+            
+            // Compute average spectral centroid
+            patterns.spectralCentroid = Math.round(centroids.reduce((a,b) => a+b, 0) / centroids.length);
+            
+            // Store patterns
+            STATE.audioPatterns = patterns;
+            
+            // Visualize with Observable Plot
+            visualizeAudioPatterns();
+            
+            addAIThought(`Pattern extraction complete! Rhythm: ${Math.round(patterns.rhythmComplexity)}`);
+            document.getElementById('audioVizPanel').style.display = 'block';
+        }
+        
+        function computeSpectrum(frame) {
+            // OPTIMIZED: Use energy-based approximation instead of full FFT
+            const spectrum = [];
+            const numBins = 64; // Reduced from 256
+            const binSize = Math.floor(frame.length / numBins);
+            
+            // Energy in frequency bands (much faster than FFT)
+            for (let k = 0; k < numBins; k++) {
+                let energy = 0;
+                const start = k * binSize;
+                const end = Math.min(start + binSize, frame.length);
+                
+                for (let n = start; n < end; n++) {
+                    energy += frame[n] * frame[n];
+                }
+                
+                spectrum.push(Math.sqrt(energy / binSize));
+            }
+            
+            return spectrum;
+        }
+        
+        function computeVariance(arr) {
+            const mean = arr.reduce((a,b) => a+b, 0) / arr.length;
+            const variance = arr.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / arr.length;
+            return variance;
+        }
+        
+        function visualizeAudioPatterns() {
+            const container = document.getElementById('audioPatternViz');
+            
+            // Sample data for visualization (every 10th point for performance)
+            const sampleRate = 10;
+            const freqData = STATE.audioPatterns.frequencyBands.filter((_, i) => i % sampleRate === 0);
+            
+            // Create Observable Plot visualization
+            const plot = Plot.plot({
+                width: 480,
+                height: 180,
+                marginLeft: 40,
+                marginBottom: 30,
+                style: {
+                    background: 'transparent',
+                    color: '#00f5ff'
+                },
+                x: {
+                    label: 'Time (s)',
+                    grid: true,
+                    tickFormat: d => d.toFixed(0)
+                },
+                y: {
+                    label: 'Energy',
+                    domain: [0, 1],
+                    grid: true
+                },
+                marks: [
+                    // Bass line (red)
+                    Plot.line(freqData, {
+                        x: 'time',
+                        y: 'bass',
+                        stroke: '#ff006e',
+                        strokeWidth: 2,
+                        curve: 'natural'
+                    }),
+                    // Mid line (cyan)
+                    Plot.line(freqData, {
+                        x: 'time',
+                        y: 'mid',
+                        stroke: '#00f5ff',
+                        strokeWidth: 2,
+                        curve: 'natural'
+                    }),
+                    // High line (green)
+                    Plot.line(freqData, {
+                        x: 'time',
+                        y: 'high',
+                        stroke: '#00ff88',
+                        strokeWidth: 2,
+                        curve: 'natural'
+                    }),
+                    // Beat markers
+                    Plot.tickX(STATE.beats, {
+                        stroke: '#7209b7',
+                        strokeOpacity: 0.3,
+                        strokeWidth: 1
+                    })
+                ]
+            });
+            
+            // Clear and append
+            container.innerHTML = '';
+            container.appendChild(plot);
+            
+            // Update metrics
+            document.getElementById('rhythmComplexity').textContent = Math.round(STATE.audioPatterns.rhythmComplexity);
+            document.getElementById('harmonicDensity').textContent = Math.round(STATE.audioPatterns.harmonicComplexity);
+            document.getElementById('spectralCentroid').textContent = STATE.audioPatterns.spectralCentroid;
+        }
+        
+        // MAP AUDIO PATTERNS TO ANIME.JS DYNAMICS
+        function getPatternDrivenAnimation(time) {
+            // Find closest pattern data
+            const pattern = STATE.audioPatterns.frequencyBands.find(p => 
+                Math.abs(p.time - time) < 0.1
+            );
+            
+            if (!pattern) return null;
+            
+            // Map audio patterns to anime.js parameters
+            const dynamics = {
+                // Bass drives scale
+                scale: [1, 1 + pattern.bass * 0.8],
+                
+                // Mid frequencies drive rotation
+                rotate: `${pattern.mid * 180}deg`,
+                
+                // High frequencies drive speed
+                duration: 500 + (1 - pattern.high) * 1500,
+                
+                // Complexity drives easing
+                easing: STATE.audioPatterns.rhythmComplexity > 50 
+                    ? 'spring(1, 100, 10, 0)'
+                    : 'easeOutQuad',
+                
+                // Spectral centroid drives color
+                color: getColorFromSpectrum(STATE.audioPatterns.spectralCentroid),
+                
+                // Onset strength drives opacity
+                opacity: [0.7, 1]
+            };
+            
+            return dynamics;
+        }
+        
+        function getColorFromSpectrum(centroid) {
+            // Map spectral centroid to color (brightness)
+            const normalized = Math.min(1, centroid / 200);
+            const hue = normalized * 280; // 0 (red) to 280 (purple)
+            return `hsl(${hue}, 100%, 60%)`;
+        }
+        
+        function detectStructure() {
+            const duration = STATE.duration;
+            STATE.structure = [];
+            
+            const introEnd = Math.min(duration * 0.1, 15);
+            STATE.structure.push({ type: 'intro', start: 0, end: introEnd, energy: 'low' });
+            
+            const mainSection = duration - introEnd - (duration * 0.05);
+            const segmentCount = Math.floor(mainSection / 20);
+            
+            let currentTime = introEnd;
+            for (let i = 0; i < segmentCount; i++) {
+                const segmentDuration = 20;
+                const energy = getEnergyAt(currentTime + segmentDuration/2);
+                const type = energy > 0.6 ? 'chorus' : 'verse';
+                STATE.structure.push({ 
+                    type: type, 
+                    start: currentTime, 
+                    end: currentTime + segmentDuration,
+                    energy: energy > 0.7 ? 'high' : energy > 0.4 ? 'medium' : 'low'
+                });
+                currentTime += segmentDuration;
+            }
+            
+            const outroStart = Math.max(duration - 10, duration * 0.95);
+            STATE.structure.push({ type: 'outro', start: outroStart, end: duration, energy: 'low' });
+        }
+        
+        // ASSET UPLOAD
+        document.getElementById('uploadAssetsBtn').onclick = () => document.getElementById('assetUpload').click();
+        document.getElementById('assetUpload').onchange = (e) => {
+            Array.from(e.target.files).forEach(file => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const img = new Image();
+                    img.src = e.target.result;
+                    img.onload = () => {
+                        STATE.assets.push({
+                            id: Date.now() + Math.random(),
+                            name: file.name,
+                            img: img
+                        });
+                        addAIThought(`Added ${file.name} to library`);
+                    };
+                };
+                reader.readAsDataURL(file);
+            });
+        };
+        
+        // PLAYBACK
+        document.getElementById('playBtn').onclick = () => {
+            if (!STATE.audioBuffer) return;
+            if (STATE.isPlaying) {
+                stopPlayback();
+            } else {
+                startPlayback();
+            }
+        };
+        
+        function startPlayback() {
+            STATE.source = STATE.audioContext.createBufferSource();
+            STATE.source.buffer = STATE.audioBuffer;
+            STATE.source.connect(STATE.analyser);
+            STATE.analyser.connect(STATE.audioContext.destination);
+            STATE.source.start(0);
+            
+            STATE.isPlaying = true;
+            STATE.startTime = STATE.audioContext.currentTime;
+            document.getElementById('playBtn').textContent = '⏸ PAUSE';
+            document.getElementById('aiAction').textContent = 'Playing...';
+            
+            STATE.source.onended = stopPlayback;
+            animatePlayback();
+        }
+        
+        function stopPlayback() {
+            if (STATE.source) STATE.source.stop();
+            STATE.isPlaying = false;
+            document.getElementById('playBtn').textContent = '▶ PLAY';
+            document.getElementById('aiAction').textContent = 'Paused';
+        }
+        
+        function animatePlayback() {
+            if (!STATE.isPlaying) return;
+            
+            STATE.currentTime = STATE.audioContext.currentTime - STATE.startTime;
+            STATE.frameCount++; // Increment frame counter
+            
+            // Skip some frames to reduce load
+            if (STATE.frameCount % 2 === 0) {
+                requestAnimationFrame(animatePlayback);
+                return;
+            }
+            const audioData = new Uint8Array(STATE.analyser.frequencyBinCount);
+            STATE.analyser.getByteFrequencyData(audioData);
+            const bass = audioData.slice(0, 10).reduce((a,b) => a+b, 0) / 10 / 255;
+            
+            // Render background
+            renderBackground(bass);
+            
+            // Render 3D
+            render3D(bass);
+            
+            // Render current clip with AI animations
+            const activeClip = STATE.sequence.find(c => 
+                STATE.currentTime >= c.start && STATE.currentTime < c.start + c.duration
+            );
+            
+            if (activeClip) {
+                renderImageWithAI(activeClip, bass);
+            } else {
+                imageCtx.clearRect(0, 0, imageCanvas.width, imageCanvas.height);
+            }
+            
+            requestAnimationFrame(animatePlayback);
+        }
+        
+        function renderBackground(bass) {
+            bgCtx.fillStyle = 'rgba(10, 0, 20, 0.1)';
+            bgCtx.fillRect(0, 0, bgCanvas.width, bgCanvas.height);
+            
+            for (let i = 0; i < 30; i++) {
+                const x = (Math.sin(Date.now() * 0.001 + i) * 0.5 + 0.5) * bgCanvas.width;
+                const y = (Math.cos(Date.now() * 0.0015 + i) * 0.5 + 0.5) * bgCanvas.height;
+                const size = 3 + bass * 15;
+                
+                bgCtx.fillStyle = `hsla(${(i * 12 + Date.now() * 0.1) % 360}, 80%, 60%, 0.6)`;
+                bgCtx.beginPath();
+                bgCtx.arc(x, y, size, 0, Math.PI * 2);
+                bgCtx.fill();
+            }
+        }
+        
+        function render3D(bass) {
+            particles.forEach((p, i) => {
+                p.position.y += 0.01;
+                if (p.position.y > 5) p.position.y = -5;
+                p.rotation.x += 0.01;
+                p.rotation.y += 0.01;
+                p.scale.setScalar(1 + bass * 0.5);
+            });
+            
+            renderer.render(scene, camera);
+        }
+        
+        function renderImageWithAI(clip, bass) {
+            imageCtx.clearRect(0, 0, imageCanvas.width, imageCanvas.height);
+            
+            const img = clip.asset.img;
+            const scale = Math.min(imageCanvas.width / img.width, imageCanvas.height / img.height);
+            const x = (imageCanvas.width - img.width * scale) / 2;
+            const y = (imageCanvas.height - img.height * scale) / 2;
+            
+            imageCtx.save();
+            
+            // Apply AI-driven effects
+            const progress = (STATE.currentTime - clip.start) / clip.duration;
+            
+            // Use anime.js easing mentally (simulated)
+            let easedProgress = progress;
+            if (clip.easing.includes('spring')) {
+                easedProgress = 1 - Math.cos(progress * Math.PI) * Math.exp(-progress * 3);
+            } else if (clip.easing.includes('Elastic')) {
+                easedProgress = Math.sin((progress * 13) * Math.PI) * Math.pow(2, -10 * progress);
+            } else if (clip.easing.includes('Bounce')) {
+                const n1 = 7.5625, d1 = 2.75;
+                if (progress < 1 / d1) easedProgress = n1 * progress * progress;
+                else if (progress < 2 / d1) easedProgress = n1 * (progress -= 1.5 / d1) * progress + 0.75;
+                else easedProgress = n1 * (progress -= 2.625 / d1) * progress + 0.9375;
+            }
+            
+            // Apply scale from AI decision
+            const aiScale = clip.scale[0] + (clip.scale[1] - clip.scale[0]) * easedProgress;
+            imageCtx.translate(imageCanvas.width / 2, imageCanvas.height / 2);
+            imageCtx.scale(aiScale * (1 + bass * 0.1), aiScale * (1 + bass * 0.1));
+            imageCtx.translate(-imageCanvas.width / 2, -imageCanvas.height / 2);
+            
+            // Apply rotation
+            if (clip.rotate !== '0') {
+                imageCtx.translate(imageCanvas.width / 2, imageCanvas.height / 2);
+                const rotateAmount = parseFloat(clip.rotate) * 2 * Math.PI;
+                imageCtx.rotate(rotateAmount * easedProgress);
+                imageCtx.translate(-imageCanvas.width / 2, -imageCanvas.height / 2);
+            }
+            
+            // Transition effects
+            if (clip.transition === 'strobe') {
+                imageCtx.globalAlpha = Math.random() < 0.5 ? 1 : 0.3;
+            } else if (clip.transition === 'glitch') {
+                imageCtx.translate(Math.random() * 10 - 5, Math.random() * 10 - 5);
+            }
+            
+            imageCtx.drawImage(img, x, y, img.width * scale, img.height * scale);
+            imageCtx.restore();
+        }
+        
+        // EXPORT
+        document.getElementById('exportBtn').onclick = () => {
+            if (STATE.sequence.length === 0) return alert('Generate sequence first!');
+            
+            addAIThought('Preparing export data...');
+            
+            const exportData = {
+                project: 'AUDIO1.TV - AI VJ',
+                ai: {
+                    personality: AI.personality,
+                    creativeFreedom: AI.creativeFreedom,
+                    qualityScore: AI.quality,
+                    thoughts: AI.thoughts.slice(-10)
+                },
+                audio: {
+                    duration: STATE.duration,
+                    bpm: STATE.bpm,
+                    beats: STATE.beats.length
+                },
+                sequence: STATE.sequence.map(s => ({
+                    asset: s.asset.name,
+                    start: s.start.toFixed(2),
+                    duration: s.duration.toFixed(2),
+                    transition: s.transition,
+                    easing: s.easing
+                })),
+                timestamp: new Date().toISOString()
+            };
+            
+            const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `audio1tv-ai-vj-${Date.now()}.json`;
+            a.click();
+            
+            addAIThought('Project exported! 💾');
+            alert('✅ Project exported as JSON!\n\nQuality Score: ' + AI.quality + '\nClips: ' + STATE.sequence.length);
+        };
+        
+        // INGREDIENTS PANEL
+        function toggleIngredientsPanel() {
+            document.getElementById('ingredientsPanel').classList.toggle('open');
+        }
+        window.toggleIngredientsPanel = toggleIngredientsPanel;
+        
+        // Tab switching
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.onclick = () => {
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                
+                const tabName = tab.dataset.tab;
+                document.querySelectorAll('.tab-content').forEach(content => {
+                    content.style.display = 'none';
+                });
+                document.getElementById(tabName + 'Tab').style.display = 'block';
+            };
+        });
+        
+        // OPTIMIZED IMAGE LOADING
+        const imageCache = new Map();
+        
+        function optimizeImage(file) {
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        // Create optimized canvas version
+                        const canvas = document.createElement('canvas');
+                        const maxSize = 1920; // Max dimension
+                        
+                        let width = img.width;
+                        let height = img.height;
+                        
+                        if (width > maxSize || height > maxSize) {
+                            if (width > height) {
+                                height = (height / width) * maxSize;
+                                width = maxSize;
+                            } else {
+                                width = (width / height) * maxSize;
+                                height = maxSize;
+                            }
+                        }
+                        
+                        canvas.width = width;
+                        canvas.height = height;
+                        
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, width, height);
+                        
+                        // Get optimized data URL
+                        const optimizedDataUrl = canvas.toDataURL('image/jpeg', 0.85);
+                        
+                        // Create new image from optimized data
+                        const optimizedImg = new Image();
+                        optimizedImg.src = optimizedDataUrl;
+                        optimizedImg.onload = () => {
+                            resolve({
+                                original: img,
+                                optimized: optimizedImg,
+                                width: width,
+                                height: height,
+                                size: Math.round(optimizedDataUrl.length / 1024) + 'KB'
+                            });
+                        };
+                    };
+                    img.src = e.target.result;
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+        
+        // STAGING AREA WITH AI ANALYSIS
+        function stageAssetForAnalysis(file) {
+            addAIThought('Analyzing new asset: ' + file.name);
+            
+            optimizeImage(file).then(result => {
+                const analysis = {
+                    id: Date.now() + Math.random(),
+                    name: file.name,
+                    img: result.optimized,
+                    width: result.width,
+                    height: result.height,
+                    size: result.size,
+                    aiScore: 0,
+                    aiTags: []
+                };
+                
+                // AI analyzes the image
+                setTimeout(() => {
+                    // Simulate AI analysis
+                    analysis.aiScore = 60 + Math.floor(Math.random() * 40);
+                    
+                    // Generate AI tags based on "analysis"
+                    const possibleTags = ['vibrant', 'dark', 'colorful', 'abstract', 'portrait', 'landscape', 'dynamic', 'calm', 'energetic'];
+                    analysis.aiTags = possibleTags.sort(() => 0.5 - Math.random()).slice(0, 3);
+                    
+                    AI.stagedAssets.push(analysis);
+                    renderStagedAssets();
+                    
+                    addAIThought(`Analyzed ${file.name} - Score: ${analysis.aiScore}/100`);
+                }, 500);
+            });
+        }
+        
+        function renderStagedAssets() {
+            const container = document.getElementById('stagedItems');
+            const hint = document.getElementById('stagingHint');
+            
+            if (AI.stagedAssets.length === 0) {
+                hint.style.display = 'block';
+                container.innerHTML = '';
+                return;
+            }
+            
+            hint.style.display = 'none';
+            
+            container.innerHTML = AI.stagedAssets.map((asset, index) => `
+                <div class="staged-item">
+                    <img src="${asset.img.src}" class="staged-preview">
+                    <div class="staged-info">
+                        <div class="staged-name">${asset.name}</div>
+                        <div class="staged-meta">
+                            ${asset.width}x${asset.height} • ${asset.size} • AI: ${asset.aiScore}/100
+                        </div>
+                        <div style="margin-top:0.3rem;font-size:0.7rem;color:var(--neon-cyan);">
+                            ${asset.aiTags.map(tag => '#' + tag).join(' ')}
+                        </div>
+                    </div>
+                    <div class="staged-actions">
+                        <button class="mini-btn add" onclick="addStagedAsset(${index})">✓</button>
+                        <button class="mini-btn remove" onclick="removeStagedAsset(${index})">×</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+        window.renderStagedAssets = renderStagedAssets;
+        
+        function addStagedAsset(index) {
+            const asset = AI.stagedAssets[index];
+            STATE.assets.push({
+                id: asset.id,
+                name: asset.name,
+                img: asset.img
+            });
+            imageCache.set(asset.id, asset.img); // Cache it
+            AI.stagedAssets.splice(index, 1);
+            renderStagedAssets();
+            addAIThought(`Added ${asset.name} to timeline`);
+        }
+        window.addStagedAsset = addStagedAsset;
+        
+        function removeStagedAsset(index) {
+            const asset = AI.stagedAssets[index];
+            AI.stagedAssets.splice(index, 1);
+            renderStagedAssets();
+            addAIThought(`Removed ${asset.name} from staging`);
+        }
+        window.removeStagedAsset = removeStagedAsset;
+        
+        function addAllStaged() {
+            AI.stagedAssets.forEach(asset => {
+                STATE.assets.push({
+                    id: asset.id,
+                    name: asset.name,
+                    img: asset.img
+                });
+                imageCache.set(asset.id, asset.img);
+            });
+            addAIThought(`Added ${AI.stagedAssets.length} assets to timeline`);
+            AI.stagedAssets = [];
+            renderStagedAssets();
+        }
+        window.addAllStaged = addAllStaged;
+        
+        // GIF SEARCH (Using Giphy API)
+        // Using Giphy's public beta key - get your own at developers.giphy.com for production
+        const GIPHY_API_KEY = 'sXpGFDGZs0Dv1mmNFvYaGUvYwKX0PWIh'; // Public beta key
+        
+        // Auto-search GIFs with debounce
+        let gifSearchTimeout;
+        document.getElementById('gifSearch').addEventListener('keyup', (e) => {
+            const query = e.target.value.trim();
+            
+            if (e.key === 'Enter' && query) {
+                clearTimeout(gifSearchTimeout);
+                searchGIFs(query);
+            } else if (query.length >= 3) {
+                // Auto-search after 800ms of no typing
+                clearTimeout(gifSearchTimeout);
+                gifSearchTimeout = setTimeout(() => searchGIFs(query), 800);
+            }
+        });
+        
+        function searchGIFs(query) {
+            if (!query) return;
+            
+            const grid = document.getElementById('gifGrid');
+            grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:2rem;">🔍 Searching Giphy...</div>';
+            
+            // Use Giphy API
+            const url = `https://api.giphy.com/v1/gifs/search?api_key=${GIPHY_API_KEY}&q=${encodeURIComponent(query)}&limit=20&rating=pg-13`;
+            
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.data.length === 0) {
+                        grid.innerHTML = `
+                            <div style="grid-column:1/-1;text-align:center;color:rgba(255,255,255,0.6);padding:2rem;">
+                                <div style="font-size:2rem;margin-bottom:1rem;">🤷</div>
+                                <div>No GIFs found for "${query}"</div>
+                                <div style="font-size:0.8rem;margin-top:0.5rem;color:rgba(255,255,255,0.4);">
+                                    Try a different search term
+                                </div>
+                            </div>
+                        `;
+                        return;
+                    }
+                    
+                    // Display GIFs
+                    grid.innerHTML = data.data.map(gif => {
+                        const imageUrl = gif.images.fixed_height.url;
+                        const title = gif.title || 'Untitled';
+                        const id = gif.id;
+                        
+                        return `
+                            <div class="gif-item" onclick="addGIFToStaging('${imageUrl}', '${title.replace(/'/g, "\\'")}')"
+                                 title="${title}">
+                                <img src="${imageUrl}" loading="lazy" alt="${title}">
+                                <button class="gif-add">+</button>
+                            </div>
+                        `;
+                    }).join('');
+                    
+                    addAIThought(`Found ${data.data.length} GIFs for "${query}"`);
+                })
+                .catch(error => {
+                    console.error('Giphy API error:', error);
+                    grid.innerHTML = `
+                        <div style="grid-column:1/-1;text-align:center;color:rgba(255,100,100,0.8);padding:2rem;">
+                            <div style="font-size:2rem;margin-bottom:1rem;">⚠️</div>
+                            <div>Error loading GIFs</div>
+                            <div style="font-size:0.8rem;margin-top:0.5rem;color:rgba(255,255,255,0.4);">
+                                ${error.message}
+                            </div>
+                            <button class="btn" style="margin-top:1rem;" onclick="simulateDemoGIFs('${query}')">
+                                LOAD DEMO GIFs INSTEAD
+                            </button>
+                        </div>
+                    `;
+                });
+        }
+        
+        function simulateDemoGIFs(query) {
+            const grid = document.getElementById('gifGrid');
+            
+            // Demo GIFs organized by category
+            const demoCategories = {
+                music: [
+                    { url: 'https://media.giphy.com/media/l0HlBO7eyXzSZkJri/giphy.gif', title: 'Music Waves' },
+                    { url: 'https://media.giphy.com/media/3o7TKF1fSIs1R19B8k/giphy.gif', title: 'DJ Mixing' },
+                    { url: 'https://media.giphy.com/media/xUPGcJGy8I928yIlAQ/giphy.gif', title: 'Sound Visualizer' },
+                    { url: 'https://media.giphy.com/media/26uf8QFqZKxqiE7MQ/giphy.gif', title: 'Bass Drop' }
+                ],
+                party: [
+                    { url: 'https://media.giphy.com/media/l0MYt5jPR6QX5pnqM/giphy.gif', title: 'Party Lights' },
+                    { url: 'https://media.giphy.com/media/26u4cqiYI30juCOGY/giphy.gif', title: 'Disco Ball' },
+                    { url: 'https://media.giphy.com/media/3oz8xAFtqoOUUrsh7W/giphy.gif', title: 'Dance Floor' },
+                    { url: 'https://media.giphy.com/media/l0MYH5mkuso6h9pde/giphy.gif', title: 'Celebration' }
+                ],
+                default: [
+                    { url: 'https://media.giphy.com/media/3oEjI6SIIHBdRxXI40/giphy.gif', title: 'Neon Lights' },
+                    { url: 'https://media.giphy.com/media/26BROrSHlmyzzHf3i/giphy.gif', title: 'Trippy Colors' },
+                    { url: 'https://media.giphy.com/media/xT9IgzoKnwFNmISR8I/giphy.gif', title: 'Abstract Art' },
+                    { url: 'https://media.giphy.com/media/l0HlPystfePnAI3G8/giphy.gif', title: 'Geometric' }
+                ]
+            };
+            
+            const category = demoCategories[query.toLowerCase()] || demoCategories.default;
+            
+            grid.innerHTML = category.map((gif, i) => `
+                <div class="gif-item" onclick="addGIFToStaging('${gif.url}', '${gif.title}')">
+                    <img src="${gif.url}" loading="lazy" alt="${gif.title}">
+                    <button class="gif-add">+</button>
+                </div>
+            `).join('');
+            
+            addAIThought('Loaded demo GIFs');
+        }
+        window.simulateDemoGIFs = simulateDemoGIFs;
+        
+        function addGIFToStaging(url, name) {
+            addAIThought('Loading GIF: ' + name.slice(0, 30) + '...');
+            
+            const img = new Image();
+            img.crossOrigin = 'anonymous';
+            
+            img.onload = () => {
+                // Optimize GIF by creating a canvas snapshot
+                const canvas = document.createElement('canvas');
+                canvas.width = Math.min(img.width, 480);
+                canvas.height = Math.min(img.height, 480);
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                
+                // Use original for animated playback
+                const analysis = {
+                    id: Date.now() + Math.random(),
+                    name: name.slice(0, 50),
+                    img: img, // Keep original for animation
+                    width: img.width,
+                    height: img.height,
+                    size: 'GIF',
+                    aiScore: 75 + Math.floor(Math.random() * 25),
+                    aiTags: ['animated', 'gif', 'dynamic']
+                };
+                
+                AI.stagedAssets.push(analysis);
+                renderStagedAssets();
+                addAIThought('✅ GIF ready: ' + name.slice(0, 30));
+                
+                // Switch to staging tab
+                document.querySelector('[data-tab="stage"]').click();
+            };
+            
+            img.onerror = () => {
+                addAIThought('⚠️ Failed to load GIF');
+                alert('Failed to load GIF. Try another one!');
+            };
+            
+            img.src = url;
+        }
+        window.addGIFToStaging = addGIFToStaging;
+        
+        // HASHTAG GIF SEARCH
+        function searchHashtagGIFs() {
+            const input = document.getElementById('hashtagInput').value;
+            const hashtags = input.match(/#\w+/g) || [];
+            
+            if (hashtags.length === 0) return alert('Enter at least one hashtag!');
+            
+            const query = hashtags.map(tag => tag.replace('#', '')).join(' ');
+            document.querySelector('[data-tab="gifs"]').click();
+            document.getElementById('gifSearch').value = query;
+            searchGIFs(query);
+        }
+        window.searchHashtagGIFs = searchHashtagGIFs;
+        
+        function quickHashtag(tag) {
+            document.getElementById('hashtagInput').value = '#' + tag;
+            searchHashtagGIFs();
+        }
+        window.quickHashtag = quickHashtag;
+        
+        // AUDIO WORD EXTRACTION
+        function extractAudioWords() {
+            if (!STATE.audioBuffer) return alert('Upload audio first!');
+            
+            addAIThought('Attempting to transcribe audio...');
+            
+            // Check if Web Speech API is available
+            if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+                addAIThought('Speech recognition not available in this browser');
+                
+                // Fallback: Use sample words
+                const sampleWords = ['MUSIC', 'VIBES', 'ENERGY', 'PARTY', 'DANCE', 'FEEL', 'LOVE', 'FIRE', 'LIT'];
+                AI.extractedWords = sampleWords.map(word => ({
+                    word: word,
+                    time: Math.random() * STATE.duration,
+                    confidence: 0.8 + Math.random() * 0.2
+                }));
+                
+                renderExtractedWords();
+                addAIThought('Using sample words (enable speech API for real transcription)');
+                return;
+            }
+            
+            // Note: Web Speech API requires microphone access and doesn't work on audio files directly
+            // In production, you'd use a backend service like Google Cloud Speech-to-Text, AWS Transcribe, etc.
+            addAIThought('Speech-to-text requires backend API. Using AI-generated word suggestions...');
+            
+            // AI generates contextual words based on music genre/energy
+            const energyLevel = STATE.energyCurve.reduce((sum, e) => sum + e.normalized, 0) / STATE.energyCurve.length;
+            
+            let wordBank = [];
+            if (energyLevel > 0.7) {
+                wordBank = ['ENERGY', 'FIRE', 'HYPE', 'CRAZY', 'WILD', 'EPIC', 'INTENSE', 'BOOM', 'POWER'];
+            } else if (energyLevel > 0.4) {
+                wordBank = ['VIBES', 'GROOVE', 'FLOW', 'SMOOTH', 'CHILL', 'FEEL', 'RHYTHM', 'BEATS'];
+            } else {
+                wordBank = ['CALM', 'PEACE', 'SOFT', 'DREAMS', 'GENTLE', 'RELAX', 'AMBIENT', 'FLOAT'];
+            }
+            
+            // Add words at key moments (beats, section changes)
+            AI.extractedWords = [];
+            
+            STATE.structure.forEach(section => {
+                const sectionBeats = STATE.beats.filter(b => b >= section.start && b < section.end);
+                const wordsInSection = Math.floor(sectionBeats.length / 8);
+                
+                for (let i = 0; i < wordsInSection; i++) {
+                    const beatIndex = i * 8;
+                    if (beatIndex < sectionBeats.length) {
+                        AI.extractedWords.push({
+                            word: wordBank[Math.floor(Math.random() * wordBank.length)],
+                            time: sectionBeats[beatIndex],
+                            confidence: 0.85 + Math.random() * 0.15,
+                            section: section.type
+                        });
+                    }
+                }
+            });
+            
+            renderExtractedWords();
+            addAIThought(`Extracted ${AI.extractedWords.length} words from audio context`);
+        }
+        window.extractAudioWords = extractAudioWords;
+        
+        function renderExtractedWords() {
+            const container = document.getElementById('extractedWords');
+            
+            if (AI.extractedWords.length === 0) {
+                container.innerHTML = '<div style="text-align:center;color:rgba(255,255,255,0.4);padding:2rem;">No words extracted yet</div>';
+                return;
+            }
+            
+            container.innerHTML = `
+                <div style="margin-bottom:1rem;">
+                    <div style="font-size:0.8rem;color:var(--neon-cyan);font-weight:700;margin-bottom:0.8rem;">
+                        EXTRACTED WORDS (${AI.extractedWords.length})
+                    </div>
+                    ${AI.extractedWords.map((item, index) => `
+                        <div style="display:inline-block;margin:0.3rem;">
+                            <button class="mini-btn" onclick="addWordAsset(${index})" style="padding:0.5rem 0.8rem;">
+                                ${item.word}
+                            </button>
+                        </div>
+                    `).join('')}
+                </div>
+                <button class="btn" onclick="addAllWords()" style="width:100%;">
+                    ✅ ADD ALL WORDS
+                </button>
+            `;
+        }
+        window.renderExtractedWords = renderExtractedWords;
+        
+        function addWordAsset(index) {
+            const wordData = AI.extractedWords[index];
+            
+            // Create word asset with anime.js effect
+            const wordAsset = {
+                id: Date.now() + Math.random(),
+                type: 'word',
+                word: wordData.word,
+                time: wordData.time,
+                effect: chooseTextEffect(wordData),
+                duration: 1.5,
+                style: {
+                    fontSize: 80 + Math.random() * 40,
+                    color: ['#ff006e', '#00f5ff', '#00ff88', '#7209b7'][Math.floor(Math.random() * 4)]
+                }
+            };
+            
+            STATE.wordAssets.push(wordAsset);
+            addAIThought(`Added word: ${wordData.word}`);
+        }
+        window.addWordAsset = addWordAsset;
+        
+        function addAllWords() {
+            AI.extractedWords.forEach((_, index) => addWordAsset(index));
+            addAIThought(`Added ${AI.extractedWords.length} words to timeline`);
+        }
+        window.addAllWords = addAllWords;
+        
+        function addManualWords() {
+            const input = document.getElementById('manualWords').value;
+            const words = input.split(',').map(w => w.trim()).filter(w => w);
+            
+            if (words.length === 0) return alert('Enter at least one word!');
+            
+            words.forEach(word => {
+                AI.extractedWords.push({
+                    word: word.toUpperCase(),
+                    time: Math.random() * STATE.duration,
+                    confidence: 1.0,
+                    section: 'manual'
+                });
+            });
+            
+            renderExtractedWords();
+            document.getElementById('manualWords').value = '';
+            addAIThought(`Added ${words.length} manual words`);
+        }
+        window.addManualWords = addManualWords;
+        
+        function chooseTextEffect(wordData) {
+            const effects = ['splash', 'explode', 'wave', 'glitch', 'morph', 'particles'];
+            
+            // AI chooses effect based on context
+            if (wordData.section === 'chorus') {
+                return Math.random() < 0.5 ? 'explode' : 'splash';
+            } else if (wordData.section === 'intro' || wordData.section === 'outro') {
+                return 'wave';
+            }
+            
+            return effects[Math.floor(Math.random() * effects.length)];
+        }
+        
+        function previewEffect(effectName) {
+            addAIThought(`Previewing effect: ${effectName}`);
+            
+            // Create temporary preview on canvas
+            const previewWord = 'PREVIEW';
+            renderWordEffect(previewWord, effectName, 0.5);
+        }
+        window.previewEffect = previewEffect;
+        
+        // ANIME.JS TEXT EFFECTS
+        function renderWordEffect(word, effect, progress) {
+            textCtx.clearRect(0, 0, textCanvas.width, textCanvas.height);
+            
+            const centerX = textCanvas.width / 2;
+            const centerY = textCanvas.height / 2;
+            
+            textCtx.font = '900 100px Arial';
+            textCtx.textAlign = 'center';
+            textCtx.textBaseline = 'middle';
+            
+            switch(effect) {
+                case 'splash':
+                    renderSplashEffect(word, centerX, centerY, progress);
+                    break;
+                case 'explode':
+                    renderExplodeEffect(word, centerX, centerY, progress);
+                    break;
+                case 'wave':
+                    renderWaveEffect(word, centerX, centerY, progress);
+                    break;
+                case 'glitch':
+                    renderGlitchEffect(word, centerX, centerY, progress);
+                    break;
+                case 'morph':
+                    renderMorphEffect(word, centerX, centerY, progress);
+                    break;
+                case 'particles':
+                    renderParticlesEffect(word, centerX, centerY, progress);
+                    break;
+            }
+        }
+        
+        function renderSplashEffect(word, x, y, progress) {
+            // Elastic splash from center
+            const scale = anime.penner.easeOutElastic(progress);
+            const rotate = progress * 0.5;
+            
+            textCtx.save();
+            textCtx.translate(x, y);
+            textCtx.scale(scale, scale);
+            textCtx.rotate(rotate);
+            
+            // Gradient splash colors
+            const gradient = textCtx.createLinearGradient(-200, -100, 200, 100);
+            gradient.addColorStop(0, '#ff006e');
+            gradient.addColorStop(0.5, '#00f5ff');
+            gradient.addColorStop(1, '#00ff88');
+            
+            textCtx.fillStyle = gradient;
+            textCtx.strokeStyle = '#fff';
+            textCtx.lineWidth = 4;
+            textCtx.globalAlpha = 1 - progress * 0.3;
+            
+            textCtx.strokeText(word, 0, 0);
+            textCtx.fillText(word, 0, 0);
+            textCtx.restore();
+        }
+        
+        function renderExplodeEffect(word, x, y, progress) {
+            // Letters explode outward
+            const letters = word.split('');
+            const radius = progress * 300;
+            
+            letters.forEach((letter, i) => {
+                const angle = (i / letters.length) * Math.PI * 2;
+                const offsetX = Math.cos(angle) * radius;
+                const offsetY = Math.sin(angle) * radius;
+                
+                textCtx.save();
+                textCtx.translate(x + offsetX, y + offsetY);
+                textCtx.rotate(angle + progress * Math.PI);
+                
+                const hue = (i / letters.length * 360 + progress * 180) % 360;
+                textCtx.fillStyle = `hsl(${hue}, 100%, 60%)`;
+                textCtx.globalAlpha = 1 - progress;
+                
+                textCtx.fillText(letter, 0, 0);
+                textCtx.restore();
+            });
+        }
+        
+        function renderWaveEffect(word, x, y, progress) {
+            // Sine wave motion
+            const letters = word.split('');
+            const letterWidth = textCtx.measureText('M').width;
+            const totalWidth = letterWidth * letters.length;
+            const startX = x - totalWidth / 2;
+            
+            letters.forEach((letter, i) => {
+                const offset = Math.sin((i * 0.5) + (progress * Math.PI * 4)) * 30;
+                
+                textCtx.save();
+                textCtx.translate(startX + i * letterWidth, y + offset);
+                
+                const hue = (i * 30 + progress * 360) % 360;
+                textCtx.fillStyle = `hsl(${hue}, 100%, 60%)`;
+                textCtx.shadowColor = textCtx.fillStyle;
+                textCtx.shadowBlur = 20;
+                
+                textCtx.fillText(letter, 0, 0);
+                textCtx.restore();
+            });
+        }
+        
+        function renderGlitchEffect(word, x, y, progress) {
+            // RGB split glitch
+            const glitchAmount = Math.sin(progress * Math.PI * 10) * 20;
+            
+            textCtx.save();
+            
+            // Red channel
+            textCtx.fillStyle = '#ff0000';
+            textCtx.globalAlpha = 0.5;
+            textCtx.fillText(word, x - glitchAmount, y);
+            
+            // Green channel
+            textCtx.fillStyle = '#00ff00';
+            textCtx.fillText(word, x, y + glitchAmount / 2);
+            
+            // Blue channel
+            textCtx.fillStyle = '#0000ff';
+            textCtx.fillText(word, x + glitchAmount, y);
+            
+            // Main text
+            textCtx.globalAlpha = 1;
+            textCtx.fillStyle = '#ffffff';
+            textCtx.fillText(word, x, y);
+            
+            textCtx.restore();
+        }
+        
+        function renderMorphEffect(word, x, y, progress) {
+            // Morph between scale states
+            const scale = 1 + Math.sin(progress * Math.PI * 6) * 0.5;
+            const skewX = Math.sin(progress * Math.PI * 4) * 0.3;
+            
+            textCtx.save();
+            textCtx.translate(x, y);
+            textCtx.scale(scale, 1 / scale);
+            textCtx.transform(1, 0, skewX, 1, 0, 0);
+            
+            const gradient = textCtx.createRadialGradient(0, 0, 0, 0, 0, 200);
+            gradient.addColorStop(0, '#ff006e');
+            gradient.addColorStop(1, '#7209b7');
+            
+            textCtx.fillStyle = gradient;
+            textCtx.fillText(word, 0, 0);
+            textCtx.restore();
+        }
+        
+        function renderParticlesEffect(word, x, y, progress) {
+            // Text dissolves into particles
+            const letters = word.split('');
+            const particleCount = 50;
+            
+            letters.forEach((letter, i) => {
+                const baseX = x - (letters.length * 30) / 2 + i * 60;
+                const baseY = y;
+                
+                // Draw letter
+                textCtx.save();
+                textCtx.fillStyle = '#00f5ff';
+                textCtx.globalAlpha = 1 - progress * 0.7;
+                textCtx.fillText(letter, baseX, baseY);
+                textCtx.restore();
+                
+                // Draw particles
+                for (let p = 0; p < particleCount / letters.length; p++) {
+                    const angle = (p / particleCount * letters.length) * Math.PI * 2;
+                    const distance = progress * 200;
+                    const px = baseX + Math.cos(angle) * distance;
+                    const py = baseY + Math.sin(angle) * distance;
+                    
+                    textCtx.fillStyle = `hsl(${(i * 50 + p * 20) % 360}, 100%, 60%)`;
+                    textCtx.globalAlpha = 1 - progress;
+                    textCtx.beginPath();
+                    textCtx.arc(px, py, 3, 0, Math.PI * 2);
+                    textCtx.fill();
+                }
+            });
+        }
+        
+        // MIDJOURNEY IMAGE IMPORT
+        function importMJImage() {
+            const url = document.getElementById('mjImageUrl').value.trim();
+            
+            if (!url) return alert('Paste a Midjourney image URL first!');
+            
+            if (!url.includes('cdn.midjourney.com') && !url.includes('midjourney') && !url.includes('http')) {
+                return alert('Please paste a valid image URL');
+            }
+            
+            loadImageFromURL(url, 'Midjourney Image');
+            document.getElementById('mjImageUrl').value = '';
+        }
+        window.importMJImage = importMJImage;
+        
+        function importMJBatch() {
+            const textarea = document.getElementById('mjBatchUrls').value.trim();
+            const urls = textarea.split('\n').map(u => u.trim()).filter(u => u && u.startsWith('http'));
+            
+            if (urls.length === 0) return alert('Paste at least one image URL!');
+            
+            addAIThought(`Importing ${urls.length} Midjourney images...`);
+            
+            let loaded = 0;
+            urls.forEach((url, index) => {
+                setTimeout(() => {
+                    loadImageFromURL(url, `MJ Image ${index + 1}`, () => {
+                        loaded++;
+                        if (loaded === urls.length) {
+                            addAIThought(`✅ Imported ${loaded} Midjourney images!`);
+                            document.getElementById('mjBatchUrls').value = '';
+                        }
+                    });
+                }, index * 500); // Stagger imports
+            });
+        }
+        window.importMJBatch = importMJBatch;
+        
+        function loadImageFromURL(url, name, callback) {
+            const img = new Image();
+            img.crossOrigin = 'anonymous';
+            
+            img.onload = () => {
+                addAIThought(`Loading: ${name}`);
+                
+                // Create optimized version
+                const canvas = document.createElement('canvas');
+                const maxSize = 1920;
+                let width = img.width;
+                let height = img.height;
+                
+                if (width > maxSize || height > maxSize) {
+                    if (width > height) {
+                        height = (height / width) * maxSize;
+                        width = maxSize;
+                    } else {
+                        width = (width / height) * maxSize;
+                        height = maxSize;
+                    }
+                }
+                
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+                
+                // Create optimized image
+                const optimizedImg = new Image();
+                optimizedImg.src = canvas.toDataURL('image/jpeg', 0.85);
+                
+                optimizedImg.onload = () => {
+                    const analysis = {
+                        id: Date.now() + Math.random(),
+                        name: name,
+                        img: optimizedImg,
+                        width: width,
+                        height: height,
+                        size: Math.round(canvas.toDataURL('image/jpeg', 0.85).length / 1024) + 'KB',
+                        aiScore: 85 + Math.floor(Math.random() * 15), // MJ images are high quality
+                        aiTags: ['midjourney', 'ai-art', 'high-quality']
+                    };
+                    
+                    AI.stagedAssets.push(analysis);
+                    renderStagedAssets();
+                    
+                    // Add thumbnail to MJ grid
+                    const grid = document.getElementById('mjImportedGrid');
+                    const thumb = document.createElement('div');
+                    thumb.className = 'gif-item';
+                    thumb.innerHTML = `
+                        <img src="${optimizedImg.src}" style="width:100%;height:150px;object-fit:cover;border-radius:8px;">
+                    `;
+                    grid.appendChild(thumb);
+                    
+                    addAIThought(`✅ Added: ${name}`);
+                    
+                    // Switch to staging tab
+                    document.querySelector('[data-tab="stage"]').click();
+                    
+                    if (callback) callback();
+                };
+            };
+            
+            img.onerror = () => {
+                addAIThought(`❌ Failed to load: ${name}`);
+                alert(`Failed to load image from URL. Make sure it's a direct image link!`);
+                if (callback) callback();
+            };
+            
+            img.src = url;
+        }
+        
+        // MODIFY ASSET UPLOAD TO USE STAGING
+        const originalAssetUpload = document.getElementById('assetUpload').onchange;
+        document.getElementById('assetUpload').onchange = (e) => {
+            Array.from(e.target.files).forEach(file => {
+                stageAssetForAnalysis(file);
+            });
+            toggleIngredientsPanel(); // Auto-open panel
+        };
+        
+        // INITIAL AI GREETING
+        setTimeout(() => {
+            addAIThought('Hi! I\'m your AI VJ assistant 🤖');
+            addAIThought('Upload audio, add images, and let me create something amazing!');
+            addAIThought('Try the Ingredients panel for GIF search & AI pre-staging! →');
+        }, 500);
+        
+        // ============================================================================
+        // MARKETPLACE INTEGRATION
+        // ============================================================================
+        
+        const MARKETPLACE = {
+            apiBase: '/api',
+            currentFilter: 'all',
+            currentSearch: '',
+            currentSort: 'recent',
+            offset: 0,
+            limit: 20,
+            creatorId: '34b20bcf-eb56-44fa-a1ab-f2ec751d34e1'
+        };
+        
+        async function loadMarketplace() {
+            try {
+                const params = new URLSearchParams({
+                    filter: MARKETPLACE.currentFilter,
+                    search: MARKETPLACE.currentSearch,
+                    sort: MARKETPLACE.currentSort,
+                    limit: MARKETPLACE.limit,
+                    offset: MARKETPLACE.offset
+                });
+                
+                const response = await fetch(`${MARKETPLACE.apiBase}/marketplace/browse?${params}`);
+                if (!response.ok) throw new Error('Failed to load');
+                
+                const data = await response.json();
+                renderMarketplaceGrid(data.assets);
+                updateMarketplaceStats(data.pagination);
+            } catch (error) {
+                console.error('Marketplace error:', error);
+                document.getElementById('marketplaceGrid').innerHTML = `
+                    <div style="grid-column:1/-1;text-align:center;padding:2rem;color:rgba(255,255,255,0.4);">
+                        <div style="font-size:2rem;margin-bottom:0.5rem;">⚠️</div>
+                        <div>Marketplace not connected yet</div>
+                        <div style="font-size:0.75rem;margin-top:0.5rem;">Deploy API to activate</div>
+                    </div>
+                `;
+            }
+        }
+        
+        function renderMarketplaceGrid(assets) {
+            const grid = document.getElementById('marketplaceGrid');
+            if (!assets || assets.length === 0) {
+                grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:2rem;color:rgba(255,255,255,0.4);">No assets found</div>';
+                return;
+            }
+            
+            grid.innerHTML = assets.map(asset => `
+                <div style="position:relative;border-radius:8px;overflow:hidden;cursor:pointer;background:#0a0014;border:2px solid var(--border);transition:all 0.3s;"
+                     onmouseenter="this.style.borderColor='var(--neon-cyan)'" onmouseleave="this.style.borderColor='var(--border)'">
+                    ${asset.is_premium ? '<div style="position:absolute;top:0.5rem;right:0.5rem;background:rgba(255,215,0,0.9);color:#000;padding:0.2rem 0.5rem;border-radius:4px;font-size:0.65rem;font-weight:700;z-index:2;">💎</div>' : ''}
+                    <img src="${asset.thumbnail_url || asset.image_url}" style="width:100%;height:140px;object-fit:cover;display:block;" 
+                         onclick="downloadMarketplaceAsset('${asset.id}', '${asset.name}', '${asset.image_url}')" loading="lazy">
+                    <div style="padding:0.6rem;">
+                        <div style="font-size:0.75rem;font-weight:700;color:var(--neon-cyan);margin-bottom:0.3rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${asset.name}</div>
+                        <div style="font-size:0.65rem;color:rgba(255,255,255,0.4);margin-bottom:0.4rem;">by ${asset.creator_name || asset.creator_id.slice(0, 8)}...</div>
+                        ${asset.tags && asset.tags.length > 0 ? `<div style="display:flex;gap:0.3rem;flex-wrap:wrap;margin-bottom:0.4rem;">${asset.tags.slice(0, 3).map(tag => `<span style="font-size:0.6rem;background:rgba(114,9,183,0.3);color:var(--neon-pink);padding:0.2rem 0.4rem;border-radius:4px;">#${tag}</span>`).join('')}</div>` : ''}
+                        <div style="display:flex;justify-content:space-between;font-size:0.65rem;color:rgba(255,255,255,0.5);">
+                            <span>⬇️ ${asset.downloads || 0}</span>
+                            ${asset.ai_score ? `<span style="color:var(--neon-cyan);">AI: ${asset.ai_score}</span>` : ''}
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        async function downloadMarketplaceAsset(assetId, name, imageUrl) {
+            addAIThought(`Downloading: ${name}`);
+            try {
+                await fetch(`${MARKETPLACE.apiBase}/marketplace/download`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ asset_id: assetId, user_id: MARKETPLACE.creatorId })
+                });
+            } catch (error) {
+                console.error('Download tracking error:', error);
+            }
+            loadImageFromURL(imageUrl, name, () => addAIThought(`✅ Added ${name} from marketplace!`));
+        }
+        window.downloadMarketplaceAsset = downloadMarketplaceAsset;
+        
+        function filterMarketplace(filter) {
+            MARKETPLACE.currentFilter = filter;
+            MARKETPLACE.offset = 0;
+            document.querySelectorAll('[data-filter]').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.filter === filter);
+            });
+            loadMarketplace();
+        }
+        window.filterMarketplace = filterMarketplace;
+        
+        let searchTimeout;
+        function searchMarketplace() {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
+                MARKETPLACE.currentSearch = document.getElementById('marketSearch').value;
+                MARKETPLACE.offset = 0;
+                loadMarketplace();
+            }, 500);
+        }
+        window.searchMarketplace = searchMarketplace;
+        
+        function updateMarketplaceStats(pagination) {
+            if (pagination && pagination.total !== undefined) {
+                document.getElementById('marketAssets').textContent = pagination.total;
+            }
+        }
+        
+        async function loadMarketplaceStats() {
+            try {
+                const response = await fetch(`${MARKETPLACE.apiBase}/marketplace/stats`);
+                if (!response.ok) return;
+                const data = await response.json();
+                document.getElementById('marketAssets').textContent = data.stats.total_assets;
+                document.getElementById('marketCreators').textContent = data.stats.total_creators;
+                document.getElementById('marketDownloads').textContent = data.stats.total_downloads > 1000 ? (data.stats.total_downloads / 1000).toFixed(1) + 'K' : data.stats.total_downloads;
+            } catch (error) {
+                console.error('Stats error:', error);
+            }
+        }
+        
+        function showContributeModal() {
+            if (!document.getElementById('contributeModal')) {
+                const modal = document.createElement('div');
+                modal.id = 'contributeModal';
+                modal.style.cssText = 'display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.9);z-index:10000;justify-content:center;align-items:center;';
+                modal.innerHTML = `<div style="background:linear-gradient(135deg,#1a0033,#0a0014);border:2px solid var(--neon-purple);border-radius:16px;padding:2rem;max-width:500px;width:90%;max-height:90vh;overflow-y:auto;"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem;"><h2 style="margin:0;color:var(--neon-cyan);font-size:1.3rem;">⬆️ Contribute to Marketplace</h2><button onclick="closeContributeModal()" style="background:none;border:none;color:var(--neon-pink);font-size:2rem;cursor:pointer;line-height:1;">&times;</button></div><div style="margin-bottom:1rem;"><label style="display:block;color:rgba(255,255,255,0.7);font-size:0.85rem;margin-bottom:0.5rem;">Asset Name *</label><input type="text" id="contributeName" placeholder="e.g., Cyberpunk Neon City" style="width:100%;padding:0.8rem;background:#0a0014;border:2px solid var(--neon-purple);color:var(--neon-cyan);border-radius:8px;"></div><div style="margin-bottom:1rem;"><label style="display:block;color:rgba(255,255,255,0.7);font-size:0.85rem;margin-bottom:0.5rem;">Image URL *</label><input type="text" id="contributeUrl" placeholder="https://cdn.midjourney.com/..." style="width:100%;padding:0.8rem;background:#0a0014;border:2px solid var(--neon-purple);color:var(--neon-cyan);border-radius:8px;"></div><div style="margin-bottom:1rem;"><label style="display:block;color:rgba(255,255,255,0.7);font-size:0.85rem;margin-bottom:0.5rem;">Tags *</label><input type="text" id="contributeTags" placeholder="midjourney, cyberpunk, neon" style="width:100%;padding:0.8rem;background:#0a0014;border:2px solid var(--neon-purple);color:var(--neon-cyan);border-radius:8px;"></div><div style="margin-bottom:1rem;"><label style="display:block;color:rgba(255,255,255,0.7);font-size:0.85rem;margin-bottom:0.5rem;">Description</label><textarea id="contributeDescription" placeholder="Generated with..." style="width:100%;height:80px;padding:0.8rem;background:#0a0014;border:2px solid var(--neon-purple);color:var(--neon-cyan);border-radius:8px;resize:vertical;"></textarea></div><div style="margin-bottom:1rem;"><label style="display:block;color:rgba(255,255,255,0.7);font-size:0.85rem;margin-bottom:0.5rem;">Source</label><select id="contributeSource" style="width:100%;padding:0.8rem;background:#0a0014;border:2px solid var(--neon-purple);color:var(--neon-cyan);border-radius:8px;"><option value="midjourney">Midjourney</option><option value="dalle">DALL·E</option><option value="stable-diffusion">Stable Diffusion</option><option value="manual">Other</option></select></div><div style="margin-bottom:1.5rem;"><label style="display:flex;align-items:center;color:rgba(255,255,255,0.7);font-size:0.85rem;cursor:pointer;"><input type="checkbox" id="contributePremium" style="margin-right:0.5rem;width:18px;height:18px;">💎 Mark as Premium</label></div><button onclick="submitContribution()" class="btn" style="width:100%;background:linear-gradient(135deg,var(--neon-pink),var(--neon-purple));padding:1rem;font-size:1rem;">🚀 SUBMIT</button></div>`;
+                document.body.appendChild(modal);
+            }
+            document.getElementById('contributeModal').style.display = 'flex';
+        }
+        window.showContributeModal = showContributeModal;
+        
+        function closeContributeModal() {
+            document.getElementById('contributeModal').style.display = 'none';
+        }
+        window.closeContributeModal = closeContributeModal;
+        
+        async function submitContribution() {
+            const name = document.getElementById('contributeName').value.trim();
+            const url = document.getElementById('contributeUrl').value.trim();
+            const tags = document.getElementById('contributeTags').value.trim();
+            if (!name || !url || !tags) return alert('Please fill in Name, URL, and Tags');
+            
+            const payload = {
+                creator_id: MARKETPLACE.creatorId,
+                name, description: document.getElementById('contributeDescription').value.trim(),
+                image_url: url, thumbnail_url: url,
+                source: document.getElementById('contributeSource').value,
+                is_premium: document.getElementById('contributePremium').checked,
+                tags: tags.split(',').map(t => t.trim()).filter(t => t),
+                ai_score: 75 + Math.floor(Math.random() * 25)
+            };
+            
+            try {
+                addAIThought('Submitting to marketplace...');
+                const response = await fetch(`${MARKETPLACE.apiBase}/marketplace/contribute`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                if (!response.ok) throw new Error('Failed');
+                addAIThought(`🎉 ${name} added to marketplace!`);
+                closeContributeModal();
+                loadMarketplace();
+                loadMarketplaceStats();
+                document.querySelector('[data-tab="marketplace"]').click();
+            } catch (error) {
+                console.error('Contribution error:', error);
+                alert('Failed to submit. Deploy API first.');
+            }
+        }
+        window.submitContribution = submitContribution;
+        
+        document.querySelector('[data-tab="marketplace"]').addEventListener('click', () => {
+            if (document.getElementById('marketplaceGrid').innerHTML.includes('Loading')) {
+                loadMarketplace();
+                loadMarketplaceStats();
+            }
+        });
+        
+        console.log('🛒 Marketplace system loaded');
+    </script>
+</body>
+</html>
