@@ -1165,22 +1165,42 @@
             return { easing, duration, transition, scale, rotate };
         }
         
-        // AI VJ - FULL AUTONOMY
-        document.getElementById('aiVjBtn').onclick = () => {
+        // AI VJ - FULL AUTONOMOUS GENERATION (Suno-style)
+        document.getElementById('aiVjBtn').onclick = async () => {
             if (!STATE.audioBuffer) return alert('Upload audio first!');
-            if (STATE.assets.length === 0) return alert('Add some images first!');
             
-            addAIThought('Taking full creative control...');
+            addAIThought('🤖 AI taking full creative control...');
             document.getElementById('aiMoodText').textContent = 'Creating your masterpiece';
             document.getElementById('aiAction').textContent = 'AI is directing...';
             
-            // AI generates the full sequence with artistic decisions
+            // AI AUTONOMOUS WORKFLOW:
+            
+            // 1. Pull assets from marketplace if none exist
+            if (STATE.assets.length === 0) {
+                await autoGatherAssets();
+            }
+            
+            // 2. Auto-fetch GIFs based on audio mood
+            await autoGatherGIFs();
+            
+            // 3. Generate abstract visuals if still low on assets
+            if (STATE.assets.length < 5) {
+                generateAbstractAssets();
+            }
+            
+            // 4. AI generates the full sequence with artistic decisions
             generateAISequence();
             
-            // Calculate quality score
+            // 5. Auto-generate text overlays based on energy
+            generateEnergyBasedText();
+            
+            // 6. Calculate quality score
             calculateQualityScore();
             
-            addAIThought('Sequence complete! Ready to play.');
+            addAIThought('✅ Autonomous video complete! Press PLAY to watch.');
+            
+            // Auto-save to library
+            saveToLibrary();
         };
         
         function generateAISequence() {
@@ -3223,7 +3243,210 @@
             });
         }
         
+        // ============================================================================
+        // AUTONOMOUS AI GENERATION (Suno-style for Video)
+        // ============================================================================
+        
+        // Auto-gather assets from marketplace
+        async function autoGatherAssets() {
+            addAIThought('Searching marketplace for visuals...');
+            
+            try {
+                // Fetch trending assets from marketplace
+                const response = await fetch(`${MARKETPLACE.apiBase}/marketplace/browse?sort=trending&limit=10`);
+                if (!response.ok) throw new Error('Marketplace unavailable');
+                
+                const data = await response.json();
+                
+                if (data.assets && data.assets.length > 0) {
+                    // Load first 5 assets
+                    for (let i = 0; i < Math.min(5, data.assets.length); i++) {
+                        const asset = data.assets[i];
+                        await new Promise(resolve => {
+                            loadImageFromURL(asset.image_url, asset.name, resolve);
+                        });
+                    }
+                    addAIThought(`✅ Loaded ${Math.min(5, data.assets.length)} assets from marketplace`);
+                } else {
+                    addAIThought('⚠️ Marketplace empty, generating abstract visuals...');
+                }
+            } catch (error) {
+                console.error('Auto-gather error:', error);
+                addAIThought('⚠️ Marketplace unavailable, using abstract visuals');
+            }
+        }
+        
+        // Auto-fetch GIFs based on audio analysis
+        async function autoGatherGIFs() {
+            // Determine mood from audio energy
+            const avgEnergy = STATE.energyCurve.reduce((sum, e) => sum + e.normalized, 0) / STATE.energyCurve.length;
+            
+            let searchTerm;
+            if (avgEnergy > 0.7) searchTerm = 'party music dance';
+            else if (avgEnergy > 0.5) searchTerm = 'vibes energy';
+            else searchTerm = 'chill ambient';
+            
+            addAIThought(`Auto-searching GIFs for mood: ${searchTerm}`);
+            
+            try {
+                const url = `https://api.giphy.com/v1/gifs/search?api_key=${GIPHY_API_KEY}&q=${encodeURIComponent(searchTerm)}&limit=5&rating=pg-13`;
+                const response = await fetch(url);
+                const data = await response.json();
+                
+                if (data.data && data.data.length > 0) {
+                    // Add first 3 GIFs to staging
+                    for (let i = 0; i < Math.min(3, data.data.length); i++) {
+                        const gif = data.data[i];
+                        await new Promise(resolve => {
+                            addGIFToStaging(gif.images.fixed_height.url, gif.title || 'GIF', resolve);
+                        });
+                    }
+                    addAIThought(`✅ Added ${Math.min(3, data.data.length)} GIFs`);
+                }
+            } catch (error) {
+                console.error('GIF auto-gather error:', error);
+            }
+        }
+        
+        // Generate abstract gradient visuals
+        function generateAbstractAssets() {
+            addAIThought('Generating AI abstract visuals...');
+            
+            const gradients = [
+                ['#667eea', '#764ba2'],
+                ['#f093fb', '#f5576c'],
+                ['#4facfe', '#00f2fe'],
+                ['#43e97b', '#38f9d7'],
+                ['#fa709a', '#fee140'],
+                ['#30cfd0', '#330867']
+            ];
+            
+            gradients.forEach((colors, index) => {
+                const canvas = document.createElement('canvas');
+                canvas.width = 1920;
+                canvas.height = 1080;
+                const ctx = canvas.getContext('2d');
+                
+                // Create gradient
+                const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+                gradient.addColorStop(0, colors[0]);
+                gradient.addColorStop(1, colors[1]);
+                ctx.fillStyle = gradient;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                // Add some shapes
+                for (let i = 0; i < 20; i++) {
+                    ctx.fillStyle = `rgba(255,255,255,${Math.random() * 0.2})`;
+                    ctx.beginPath();
+                    ctx.arc(
+                        Math.random() * canvas.width,
+                        Math.random() * canvas.height,
+                        Math.random() * 200 + 50,
+                        0, Math.PI * 2
+                    );
+                    ctx.fill();
+                }
+                
+                const img = new Image();
+                img.src = canvas.toDataURL();
+                img.onload = () => {
+                    STATE.assets.push({
+                        id: Date.now() + index,
+                        name: `Abstract ${index + 1}`,
+                        img: img
+                    });
+                };
+            });
+            
+            addAIThought(`✅ Generated ${gradients.length} abstract visuals`);
+        }
+        
+        // Generate energy-based text overlays
+        function generateEnergyBasedText() {
+            if (!STATE.energyCurve || STATE.energyCurve.length === 0) return;
+            
+            addAIThought('Generating energy-based text...');
+            
+            const words = ['ENERGY', 'VIBES', 'FLOW', 'PULSE', 'BASS', 'DROP', 'RISE', 'PEAK'];
+            
+            // Find energy peaks
+            STATE.energyCurve.forEach((point, index) => {
+                if (index > 0 && index < STATE.energyCurve.length - 1) {
+                    const prev = STATE.energyCurve[index - 1];
+                    const next = STATE.energyCurve[index + 1];
+                    
+                    // Detect peak
+                    if (point.normalized > prev.normalized && point.normalized > next.normalized && point.normalized > 0.7) {
+                        STATE.wordAssets.push({
+                            text: words[Math.floor(Math.random() * words.length)],
+                            time: point.time,
+                            duration: 1.5,
+                            effect: ['splash', 'explode', 'glitch'][Math.floor(Math.random() * 3)]
+                        });
+                    }
+                }
+            });
+            
+            addAIThought(`✅ Generated ${STATE.wordAssets.length} text overlays`);
+        }
+        
+        // Save to library for user to browse
+        const LIBRARY = {
+            videos: []
+        };
+        
+        function saveToLibrary() {
+            const video = {
+                id: Date.now(),
+                created: new Date().toISOString(),
+                audio: {
+                    duration: STATE.duration,
+                    bpm: STATE.bpm
+                },
+                ai: {
+                    personality: AI.personality,
+                    freedom: AI.creativeFreedom,
+                    quality: AI.quality
+                },
+                sequence: STATE.sequence,
+                assets: STATE.assets.length,
+                lyrics: AI.lyrics.synced,
+                thumbnail: generateThumbnail()
+            };
+            
+            LIBRARY.videos.unshift(video);
+            
+            // Keep only last 10
+            if (LIBRARY.videos.length > 10) {
+                LIBRARY.videos = LIBRARY.videos.slice(0, 10);
+            }
+            
+            addAIThought('💾 Saved to library');
+        }
+        
+        function generateThumbnail() {
+            if (STATE.assets.length === 0) return null;
+            
+            // Use first asset as thumbnail
+            const canvas = document.createElement('canvas');
+            canvas.width = 320;
+            canvas.height = 180;
+            const ctx = canvas.getContext('2d');
+            
+            const img = STATE.assets[0].img;
+            const scale = Math.min(canvas.width / img.width, canvas.height / img.height);
+            const x = (canvas.width - img.width * scale) / 2;
+            const y = (canvas.height - img.height * scale) / 2;
+            
+            ctx.fillStyle = '#000';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(img, x, y, img.width * scale, img.height * scale);
+            
+            return canvas.toDataURL('image/jpeg', 0.7);
+        }
+        
         console.log('🎵 AI Lyric Video system loaded');
+        console.log('🤖 AUTONOMOUS AI VJ ready - Upload audio and let AI create!');
     </script>
 </body>
 </html>
