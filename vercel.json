@@ -1,0 +1,21 @@
+{
+  "version": 2,
+  "buildCommand": "echo 'Static site - no build needed'",
+  "installCommand": "pnpm install --frozen-lockfile",
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "/api/$1"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/$1"
+    }
+  ],
+  "functions": {
+    "api/**/*.js": {
+      "runtime": "nodejs20.x",
+      "maxDuration": 10
+    }
+  }
+}
