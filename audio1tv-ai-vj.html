@@ -677,6 +677,7 @@
         
         <div class="ingredients-tabs">
             <button class="tab active" data-tab="stage">🎭 STAGING</button>
+            <button class="tab" data-tab="lyrics">🎵 LYRICS</button>
             <button class="tab" data-tab="marketplace">🛒 MARKET</button>
             <button class="tab" data-tab="midjourney">🎨 MJ</button>
             <button class="tab" data-tab="words">🎤 WORDS</button>
@@ -749,6 +750,58 @@
                 <div id="marketplaceGrid" style="display:grid;grid-template-columns:repeat(2,1fr);gap:0.6rem;max-height:450px;overflow-y:auto;padding-right:0.3rem;">
                     <div style="grid-column:1/-1;text-align:center;color:rgba(255,255,255,0.4);padding:2rem;font-size:0.85rem;">
                         Loading marketplace...
+                    </div>
+                </div>
+            </div>
+            
+            <div class="tab-content" id="lyricsTab" style="display:none;">
+                <div style="margin-bottom:1rem;">
+                    <div style="font-size:0.9rem;color:var(--neon-cyan);font-weight:700;margin-bottom:0.5rem;">
+                        🎵 AI LYRIC VIDEO GENERATOR
+                    </div>
+                    <div style="font-size:0.75rem;color:rgba(255,255,255,0.5);margin-bottom:1rem;">
+                        AI syncs lyrics to beats with anime.js effects
+                    </div>
+                </div>
+                
+                <textarea id="lyricsInput" placeholder="Paste your lyrics here...&#10;&#10;Each line will be synced to the music&#10;AI will detect timing and add effects"
+                          style="width:100%;height:200px;background:#0a0014;border:2px solid var(--neon-purple);color:var(--neon-cyan);border-radius:8px;padding:0.8rem;font-family:monospace;font-size:0.85rem;line-height:1.6;resize:vertical;"></textarea>
+                
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;margin:1rem 0;">
+                    <button class="btn" onclick="autoSyncLyrics()" style="font-size:0.85rem;">
+                        🤖 AUTO-SYNC TO BEATS
+                    </button>
+                    <button class="btn" onclick="clearLyrics()" style="font-size:0.85rem;background:rgba(255,0,100,0.2);">
+                        🗑️ CLEAR
+                    </button>
+                </div>
+                
+                <div style="border-top:1px solid var(--border);padding-top:1rem;margin-bottom:1rem;">
+                    <div style="font-size:0.8rem;color:rgba(255,255,255,0.6);margin-bottom:0.8rem;">LYRIC STYLE:</div>
+                    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:0.5rem;">
+                        <button class="tag-pill active" data-style="karaoke" onclick="setLyricStyle('karaoke')">Karaoke</button>
+                        <button class="tag-pill" data-style="word-by-word" onclick="setLyricStyle('word-by-word')">Word by Word</button>
+                        <button class="tag-pill" data-style="bounce" onclick="setLyricStyle('bounce')">Bounce</button>
+                        <button class="tag-pill" data-style="fade" onclick="setLyricStyle('fade')">Fade</button>
+                        <button class="tag-pill" data-style="glitch" onclick="setLyricStyle('glitch')">Glitch</button>
+                        <button class="tag-pill" data-style="waves" onclick="setLyricStyle('waves')">Waves</button>
+                    </div>
+                </div>
+                
+                <div id="lyricTimeline" style="background:rgba(114,9,183,0.1);border-radius:8px;padding:1rem;max-height:300px;overflow-y:auto;display:none;">
+                    <div style="font-size:0.8rem;color:var(--neon-cyan);font-weight:700;margin-bottom:0.8rem;">SYNCED LYRICS:</div>
+                    <div id="lyricLines"></div>
+                </div>
+                
+                <div style="background:rgba(114,9,183,0.2);border-radius:8px;padding:1rem;margin-top:1rem;">
+                    <div style="font-size:0.75rem;color:rgba(255,255,255,0.7);line-height:1.6;">
+                        <strong>💡 How it works:</strong><br>
+                        1. Upload audio first<br>
+                        2. Paste lyrics above<br>
+                        3. Click AUTO-SYNC TO BEATS<br>
+                        4. AI matches each line to audio beats<br>
+                        5. Choose style and play!<br><br>
+                        <strong>Pro tip:</strong> Leave blank lines for longer pauses
                     </div>
                 </div>
             </div>
@@ -892,7 +945,12 @@
             decisions: [],
             quality: 0,
             stagedAssets: [], // Pre-analyzed assets
-            extractedWords: [] // Words from audio
+            extractedWords: [], // Words from audio
+            lyrics: { // AI Lyric Video System
+                lines: [],
+                style: 'karaoke',
+                synced: false
+            }
         };
         
         const STATE = {
@@ -1692,6 +1750,11 @@
                 renderImageWithAI(activeClip, bass);
             } else {
                 imageCtx.clearRect(0, 0, imageCanvas.width, imageCanvas.height);
+            }
+            
+            // Render AI lyrics with anime.js effects
+            if (AI.lyrics.synced) {
+                renderLyrics(STATE.currentTime, bass);
             }
             
             requestAnimationFrame(animatePlayback);
@@ -2847,6 +2910,320 @@
         });
         
         console.log('🛒 Marketplace system loaded');
+        
+        // ============================================================================
+        // AI LYRIC VIDEO GENERATOR
+        // ============================================================================
+        
+        function autoSyncLyrics() {
+            if (!STATE.audioBuffer) return alert('Upload audio first!');
+            if (STATE.beats.length === 0) return alert('Analyze audio first!');
+            
+            const lyricsText = document.getElementById('lyricsInput').value.trim();
+            if (!lyricsText) return alert('Paste lyrics first!');
+            
+            addAIThought('Syncing lyrics to beats...');
+            
+            // Parse lyrics into lines
+            const rawLines = lyricsText.split('\n').map(line => line.trim());
+            
+            // AI analyzes each line
+            const analyzedLines = rawLines.map(text => {
+                const words = text.split(' ').filter(w => w);
+                const syllables = estimateSyllables(text);
+                const isEmpty = text.length === 0;
+                
+                return {
+                    text,
+                    words,
+                    syllables,
+                    isEmpty,
+                    duration: isEmpty ? 2 : Math.max(2, syllables * 0.3), // Estimate line duration
+                    energy: 0.5 // Default, will be matched to audio
+                };
+            });
+            
+            // Sync lines to beats
+            const syncedLines = [];
+            let currentBeatIndex = 0;
+            
+            analyzedLines.forEach((line, index) => {
+                if (currentBeatIndex >= STATE.beats.length) return;
+                
+                const startTime = STATE.beats[currentBeatIndex];
+                
+                // Determine how many beats this line should span
+                let beatsNeeded = line.isEmpty ? 2 : Math.ceil(line.syllables / 2);
+                beatsNeeded = Math.max(1, Math.min(beatsNeeded, 8)); // 1-8 beats per line
+                
+                // Find end time
+                const endBeatIndex = Math.min(currentBeatIndex + beatsNeeded, STATE.beats.length - 1);
+                const endTime = STATE.beats[endBeatIndex];
+                const duration = endTime - startTime;
+                
+                // Get energy at this time
+                const energyPoint = STATE.energyCurve.find(e => Math.abs(e.time - startTime) < 0.5);
+                const energy = energyPoint ? energyPoint.normalized : 0.5;
+                
+                syncedLines.push({
+                    ...line,
+                    startTime,
+                    endTime,
+                    duration,
+                    energy,
+                    beatIndex: currentBeatIndex,
+                    effect: AI.lyrics.style
+                });
+                
+                currentBeatIndex = endBeatIndex + 1;
+            });
+            
+            AI.lyrics.lines = syncedLines;
+            AI.lyrics.synced = true;
+            
+            addAIThought(`✅ Synced ${syncedLines.filter(l => !l.isEmpty).length} lyrics to beats!`);
+            
+            renderLyricTimeline();
+        }
+        window.autoSyncLyrics = autoSyncLyrics;
+        
+        function estimateSyllables(text) {
+            // Simple syllable counter
+            const vowels = 'aeiouAEIOU';
+            let count = 0;
+            let prevWasVowel = false;
+            
+            for (let char of text) {
+                const isVowel = vowels.includes(char);
+                if (isVowel && !prevWasVowel) count++;
+                prevWasVowel = isVowel;
+            }
+            
+            return Math.max(1, count);
+        }
+        
+        function renderLyricTimeline() {
+            const timeline = document.getElementById('lyricTimeline');
+            const container = document.getElementById('lyricLines');
+            
+            if (AI.lyrics.lines.length === 0) {
+                timeline.style.display = 'none';
+                return;
+            }
+            
+            timeline.style.display = 'block';
+            
+            container.innerHTML = AI.lyrics.lines.map((line, index) => `
+                <div style="padding:0.6rem;margin-bottom:0.5rem;background:rgba(0,245,255,0.1);border-left:3px solid var(--neon-cyan);border-radius:4px;">
+                    <div style="font-size:0.85rem;color:var(--neon-cyan);font-family:monospace;">
+                        ${line.isEmpty ? '<em style="color:rgba(255,255,255,0.3);">[pause]</em>' : line.text}
+                    </div>
+                    <div style="font-size:0.7rem;color:rgba(255,255,255,0.5);margin-top:0.3rem;">
+                        ${line.startTime.toFixed(2)}s - ${line.endTime.toFixed(2)}s • Energy: ${(line.energy * 100).toFixed(0)}% • ${line.effect}
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        function setLyricStyle(style) {
+            AI.lyrics.style = style;
+            
+            // Update active state
+            document.querySelectorAll('[data-style]').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.style === style);
+            });
+            
+            // Update existing synced lines
+            AI.lyrics.lines.forEach(line => {
+                line.effect = style;
+            });
+            
+            renderLyricTimeline();
+            addAIThought(`Lyric style: ${style}`);
+        }
+        window.setLyricStyle = setLyricStyle;
+        
+        function clearLyrics() {
+            document.getElementById('lyricsInput').value = '';
+            AI.lyrics.lines = [];
+            AI.lyrics.synced = false;
+            document.getElementById('lyricTimeline').style.display = 'none';
+            addAIThought('Lyrics cleared');
+        }
+        window.clearLyrics = clearLyrics;
+        
+        // RENDER LYRICS WITH ANIME.JS EFFECTS
+        function renderLyrics(currentTime, bass) {
+            textCtx.clearRect(0, 0, textCanvas.width, textCanvas.height);
+            
+            // Find active lyric line
+            const activeLine = AI.lyrics.lines.find(line => 
+                currentTime >= line.startTime && currentTime < line.endTime
+            );
+            
+            if (!activeLine || activeLine.isEmpty) return;
+            
+            // Calculate progress within this line
+            const progress = (currentTime - activeLine.startTime) / activeLine.duration;
+            
+            // Apply effect based on style
+            const centerX = textCanvas.width / 2;
+            const centerY = textCanvas.height / 2;
+            
+            textCtx.save();
+            textCtx.textAlign = 'center';
+            textCtx.textBaseline = 'middle';
+            textCtx.font = 'bold 48px sans-serif';
+            
+            switch (activeLine.effect) {
+                case 'karaoke':
+                    renderKaraoke(activeLine, progress, centerX, centerY, bass);
+                    break;
+                case 'word-by-word':
+                    renderWordByWord(activeLine, progress, centerX, centerY, bass);
+                    break;
+                case 'bounce':
+                    renderBounce(activeLine, progress, centerX, centerY, bass);
+                    break;
+                case 'fade':
+                    renderFade(activeLine, progress, centerX, centerY, bass);
+                    break;
+                case 'glitch':
+                    renderGlitchLyric(activeLine, progress, centerX, centerY, bass);
+                    break;
+                case 'waves':
+                    renderWavesLyric(activeLine, progress, centerX, centerY, bass);
+                    break;
+            }
+            
+            textCtx.restore();
+        }
+        
+        // KARAOKE: Wipe effect left to right
+        function renderKaraoke(line, progress, x, y, bass) {
+            const text = line.text;
+            const totalWidth = textCtx.measureText(text).width;
+            const wipePosition = progress * totalWidth;
+            
+            // Unsung part (gray)
+            textCtx.fillStyle = 'rgba(255,255,255,0.3)';
+            textCtx.shadowColor = 'rgba(0,0,0,0.5)';
+            textCtx.shadowBlur = 10;
+            textCtx.fillText(text, x, y);
+            
+            // Sung part (neon cyan)
+            textCtx.save();
+            textCtx.beginPath();
+            textCtx.rect(x - totalWidth/2, y - 50, wipePosition, 100);
+            textCtx.clip();
+            
+            textCtx.fillStyle = '#00f5ff';
+            textCtx.shadowColor = '#00f5ff';
+            textCtx.shadowBlur = 20 + bass * 30;
+            textCtx.fillText(text, x, y);
+            
+            textCtx.restore();
+        }
+        
+        // WORD-BY-WORD: Each word appears individually
+        function renderWordByWord(line, progress, x, y, bass) {
+            const words = line.words;
+            const wordDuration = 1 / words.length;
+            
+            words.forEach((word, index) => {
+                const wordStart = index * wordDuration;
+                const wordEnd = (index + 1) * wordDuration;
+                
+                if (progress >= wordStart) {
+                    const wordProgress = Math.min(1, (progress - wordStart) / wordDuration);
+                    const opacity = wordProgress < 0.2 ? wordProgress / 0.2 : 1;
+                    const scale = 0.5 + (wordProgress < 0.3 ? anime.penner.easeOutElastic(wordProgress / 0.3) * 0.5 : 0.5);
+                    
+                    textCtx.save();
+                    const wordWidth = textCtx.measureText(words.slice(0, index).join(' ')).width;
+                    const xPos = x - textCtx.measureText(line.text).width/2 + wordWidth + textCtx.measureText(word).width/2;
+                    
+                    textCtx.translate(xPos, y);
+                    textCtx.scale(scale, scale);
+                    textCtx.translate(-xPos, -y);
+                    
+                    textCtx.fillStyle = `rgba(0,245,255,${opacity})`;
+                    textCtx.shadowColor = '#00f5ff';
+                    textCtx.shadowBlur = 15 + bass * 20;
+                    textCtx.fillText(word, xPos, y);
+                    
+                    textCtx.restore();
+                }
+            });
+        }
+        
+        // BOUNCE: Text bounces on beat
+        function renderBounce(line, progress, x, y, bass) {
+            const bounceHeight = 30;
+            const bounceProgress = anime.penner.easeOutBounce(progress);
+            const yOffset = -bounceHeight * (1 - bounceProgress) + bass * 20;
+            
+            textCtx.fillStyle = '#ff006e';
+            textCtx.shadowColor = '#ff006e';
+            textCtx.shadowBlur = 25 + bass * 40;
+            textCtx.fillText(line.text, x, y + yOffset);
+        }
+        
+        // FADE: Simple fade in/out
+        function renderFade(line, progress, x, y, bass) {
+            let opacity;
+            if (progress < 0.1) opacity = progress / 0.1;
+            else if (progress > 0.9) opacity = (1 - progress) / 0.1;
+            else opacity = 1;
+            
+            textCtx.fillStyle = `rgba(0,245,255,${opacity})`;
+            textCtx.shadowColor = '#00f5ff';
+            textCtx.shadowBlur = 20 + bass * 30;
+            textCtx.fillText(line.text, x, y);
+        }
+        
+        // GLITCH: RGB split glitch effect
+        function renderGlitchLyric(line, progress, x, y, bass) {
+            const glitchAmount = bass * 15;
+            const text = line.text;
+            
+            // Red channel
+            textCtx.fillStyle = '#ff0055';
+            textCtx.globalAlpha = 0.7;
+            textCtx.fillText(text, x - glitchAmount, y);
+            
+            // Cyan channel
+            textCtx.fillStyle = '#00ffff';
+            textCtx.fillText(text, x + glitchAmount, y);
+            
+            // Main text
+            textCtx.globalAlpha = 1;
+            textCtx.fillStyle = '#ffffff';
+            textCtx.shadowColor = '#ffffff';
+            textCtx.shadowBlur = 15;
+            textCtx.fillText(text, x + Math.random() * 4 - 2, y);
+        }
+        
+        // WAVES: Letters wave like ocean
+        function renderWavesLyric(line, progress, x, y, bass) {
+            const letters = line.text.split('');
+            const letterWidth = textCtx.measureText('M').width;
+            const totalWidth = textCtx.measureText(line.text).width;
+            const startX = x - totalWidth / 2;
+            
+            letters.forEach((letter, i) => {
+                const waveOffset = Math.sin((i * 0.4) + (progress * Math.PI * 4)) * 25;
+                const xPos = startX + i * letterWidth;
+                const hue = (i * 30 + progress * 360) % 360;
+                
+                textCtx.fillStyle = `hsl(${hue}, 100%, 60%)`;
+                textCtx.shadowColor = `hsl(${hue}, 100%, 60%)`;
+                textCtx.shadowBlur = 20 + bass * 20;
+                textCtx.fillText(letter, xPos, y + waveOffset);
+            });
+        }
+        
+        console.log('🎵 AI Lyric Video system loaded');
     </script>
 </body>
 </html>
