@@ -592,6 +592,7 @@
             <div class="btn-group">
                 <button class="btn" id="playBtn">▶ PLAY</button>
                 <button class="btn ai-mode" id="aiVjBtn">🤖 LET AI VJ</button>
+                <button class="btn" id="toggleImagesBtn" title="Toggle image rendering for performance">🖼️ IMAGES</button>
                 <button class="btn" id="exportBtn">💾 EXPORT</button>
             </div>
         </header>
@@ -910,6 +911,7 @@
             currentTime: 0,
             wordAssets: [], // Dynamic text from audio
             frameCount: 0, // Frame counter for throttling
+            renderImages: true, // Toggle for image rendering performance
             audioPatterns: {
                 frequencyBands: [], // Bass, Mid, High over time
                 rhythmPattern: [], // Beat intensity patterns
@@ -1686,7 +1688,7 @@
                 STATE.currentTime >= c.start && STATE.currentTime < c.start + c.duration
             );
             
-            if (activeClip) {
+            if (activeClip && STATE.renderImages) {
                 renderImageWithAI(activeClip, bass);
             } else {
                 imageCtx.clearRect(0, 0, imageCanvas.width, imageCanvas.height);
@@ -1773,6 +1775,23 @@
             imageCtx.drawImage(img, x, y, img.width * scale, img.height * scale);
             imageCtx.restore();
         }
+        
+        // TOGGLE IMAGE RENDERING
+        document.getElementById('toggleImagesBtn').onclick = () => {
+            STATE.renderImages = !STATE.renderImages;
+            const btn = document.getElementById('toggleImagesBtn');
+            
+            if (STATE.renderImages) {
+                btn.textContent = '🖼️ IMAGES';
+                btn.style.opacity = '1';
+                addAIThought('Image rendering ON');
+            } else {
+                btn.textContent = '🚫 IMAGES OFF';
+                btn.style.opacity = '0.5';
+                addAIThought('Image rendering OFF (performance mode)');
+                imageCtx.clearRect(0, 0, imageCanvas.width, imageCanvas.height);
+            }
+        };
         
         // EXPORT
         document.getElementById('exportBtn').onclick = () => {
