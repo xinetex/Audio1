@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>⚡ ThunderVerse Pac-Man - Meme Coin Edition</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'SF Mono', 'Monaco', 'Courier New', monospace;
+            background: linear-gradient(135deg, #0a0014 0%, #1a0f2e 50%, #0f1419 100%);
+            color: #e0e0e0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 2rem;
+        }
+
+        .game-container {
+            text-align: center;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            background: linear-gradient(135deg, #7209b7, #ff006e, #00f5ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 1rem;
+        }
+
+        .subtitle {
+            color: #00f5ff;
+            margin-bottom: 2rem;
+            font-size: 1.2rem;
+        }
+
+        canvas {
+            border: 3px solid #7209b7;
+            border-radius: 8px;
+            box-shadow: 0 0 40px rgba(114, 9, 183, 0.5);
+            background: #0a0014;
+            image-rendering: pixelated;
+        }
+
+        .controls {
+            margin-top: 2rem;
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        button {
+            padding: 0.8rem 1.5rem;
+            background: linear-gradient(135deg, #7209b7, #ff006e);
+            border: none;
+            color: white;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            transition: all 0.3s;
+            font-size: 0.9rem;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(114, 9, 183, 0.6);
+        }
+
+        .instructions {
+            margin-top: 2rem;
+            background: rgba(26, 15, 46, 0.6);
+            border: 1px solid #2d1b4e;
+            padding: 1.5rem;
+            border-radius: 8px;
+            max-width: 600px;
+        }
+
+        .instructions h3 {
+            color: #00f5ff;
+            margin-bottom: 1rem;
+        }
+
+        .instructions p {
+            margin-bottom: 0.5rem;
+            color: #e0e0e0;
+        }
+
+        .asset-customizer {
+            margin-top: 2rem;
+            background: rgba(26, 15, 46, 0.6);
+            border: 1px solid #2d1b4e;
+            padding: 1.5rem;
+            border-radius: 8px;
+            max-width: 600px;
+        }
+
+        .asset-customizer h3 {
+            color: #ff006e;
+            margin-bottom: 1rem;
+        }
+
+        .asset-input {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+            align-items: center;
+        }
+
+        .asset-input label {
+            width: 100px;
+            color: #00f5ff;
+        }
+
+        .asset-input input {
+            flex: 1;
+            padding: 0.5rem;
+            background: rgba(10, 0, 20, 0.7);
+            border: 1px solid #2d1b4e;
+            border-radius: 4px;
+            color: #fff;
+            font-family: inherit;
+        }
+
+        .credit {
+            margin-top: 2rem;
+            opacity: 0.7;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <h1>⚡ ThunderVerse Pac-Man</h1>
+        <p class="subtitle">🪙 Meme Coin Edition - Brand Your Game!</p>
+        
+        <canvas id="gameCanvas" width="800" height="600"></canvas>
+        
+        <div class="controls">
+            <button onclick="startGame()">▶️ Start Game</button>
+            <button onclick="pauseGame()">⏸️ Pause</button>
+            <button onclick="resetGame()">🔄 Reset</button>
+        </div>
+
+        <div class="asset-customizer">
+            <h3>🎨 Customize Assets (Meme Coin Branding)</h3>
+            <div class="asset-input">
+                <label>Player:</label>
+                <input type="text" id="playerSprite" value="😊" maxlength="2">
+            </div>
+            <div class="asset-input">
+                <label>Ghost 1:</label>
+                <input type="text" id="ghost1Sprite" value="👻" maxlength="2">
+            </div>
+            <div class="asset-input">
+                <label>Ghost 2:</label>
+                <input type="text" id="ghost2Sprite" value="💀" maxlength="2">
+            </div>
+            <div class="asset-input">
+                <label>Ghost 3:</label>
+                <input type="text" id="ghost3Sprite" value="🦇" maxlength="2">
+            </div>
+            <div class="asset-input">
+                <label>Ghost 4:</label>
+                <input type="text" id="ghost4Sprite" value="🧛" maxlength="2">
+            </div>
+            <div class="asset-input">
+                <label>Pellet:</label>
+                <input type="text" id="pelletSprite" value="💎" maxlength="2">
+            </div>
+            <div class="asset-input">
+                <label>Power Pellet:</label>
+                <input type="text" id="powerPelletSprite" value="⭐" maxlength="2">
+            </div>
+            <button onclick="applyCustomAssets()" style="width: 100%; margin-top: 1rem;">Apply Custom Assets</button>
+        </div>
+
+        <div class="instructions">
+            <h3>🎮 How to Play</h3>
+            <p><strong>Arrow Keys / WASD:</strong> Move</p>
+            <p><strong>Space:</strong> Pause</p>
+            <p><strong>Goal:</strong> Collect all pellets (💎) and power pellets (⭐)</p>
+            <p><strong>Avoid:</strong> Ghosts (unless you eat a power pellet!)</p>
+            <p><strong>Power Mode:</strong> Eat ghosts for bonus points when powered up</p>
+        </div>
+
+        <div class="credit">Created with ⚡ ThunderVerse Studio | ThunderEngine v1.0</div>
+    </div>
+
+    <script type="module">
+        // Inline ThunderEngine for standalone demo
+        const Direction = {
+            UP: 'UP',
+            DOWN: 'DOWN',
+            LEFT: 'LEFT',
+            RIGHT: 'RIGHT',
+            NONE: 'NONE'
+        };
+
+        const EntityType = {
+            PLAYER: 'PLAYER',
+            GHOST: 'GHOST',
+            PELLET: 'PELLET',
+            POWER_PELLET: 'POWER_PELLET',
+            WALL: 'WALL'
+        };
+
+        const GameState = {
+            MENU: 'MENU',
+            PLAYING: 'PLAYING',
+            PAUSED: 'PAUSED',
+            GAME_OVER: 'GAME_OVER',
+            WIN: 'WIN'
+        };
+
+        // Custom asset configuration
+        let customAssets = {
+            player: '😊',
+            ghosts: ['👻', '💀', '🦇', '🧛'],
+            pellet: '💎',
+            powerPellet: '⭐'
+        };
+
+        class PacManGame {
+            constructor(canvas) {
+                this.canvas = canvas;
+                this.ctx = canvas.getContext('2d');
+                this.gridSize = 32;
+                this.running = false;
+                this.gameState = GameState.MENU;
+                this.score = 0;
+                this.lives = 3;
+                this.level = 1;
+                this.powerMode = false;
+                this.powerModeTimer = 0;
+                this.POWER_MODE_DURATION = 8;
+
+                this.setupInput();
+                this.reset();
+            }
+
+            reset() {
+                this.score = 0;
+                this.lives = 3;
+                this.powerMode = false;
+                this.powerModeTimer = 0;
+                this.gameState = GameState.MENU;
+                
+                this.grid = this.createMazeGrid();
+                this.player = this.createPlayer();
+                this.ghosts = this.createGhosts();
+                this.pellets = this.createPellets();
+            }
+
+            createMazeGrid() {
+                const rows = Math.floor(this.canvas.height / this.gridSize);
+                const cols = Math.floor(this.canvas.width / this.gridSize);
+                const grid = Array(rows).fill(0).map(() => Array(cols).fill(0));
+
+                // Border walls
+                for (let i = 0; i < cols; i++) {
+                    grid[0][i] = 1;
+                    grid[rows - 1][i] = 1;
+                }
+                for (let i = 0; i < rows; i++) {
+                    grid[i][0] = 1;
+                    grid[i][cols - 1] = 1;
+                }
+
+                // Inner maze patterns
+                const patterns = [
+                    { x: 3, y: 3, w: 2, h: 2 },
+                    { x: 8, y: 3, w: 3, h: 2 },
+                    { x: 14, y: 3, w: 3, h: 2 },
+                    { x: 20, y: 3, w: 2, h: 2 },
+                    { x: 3, y: 7, w: 2, h: 3 },
+                    { x: 7, y: 7, w: 2, h: 5 },
+                    { x: 16, y: 7, w: 2, h: 5 },
+                    { x: 20, y: 7, w: 2, h: 3 },
+                    { x: 11, y: 6, w: 3, h: 1 },
+                    { x: 11, y: 8, w: 3, h: 2 }
+                ];
+
+                patterns.forEach(p => {
+                    for (let y = p.y; y < p.y + p.h && y < rows; y++) {
+                        for (let x = p.x; x < p.x + p.w && x < cols; x++) {
+                            grid[y][x] = 1;
+                        }
+                    }
+                });
+
+                return grid;
+            }
+
+            createPlayer() {
+                return {
+                    x: 12 * this.gridSize,
+                    y: 14 * this.gridSize,
+                    direction: Direction.NONE,
+                    speed: this.gridSize * 4,
+                    sprite: customAssets.player
+                };
+            }
+
+            createGhosts() {
+                const positions = [
+                    { x: 10, y: 7 },
+                    { x: 12, y: 7 },
+                    { x: 14, y: 7 },
+                    { x: 12, y: 9 }
+                ];
+
+                return positions.map((pos, i) => ({
+                    x: pos.x * this.gridSize,
+                    y: pos.y * this.gridSize,
+                    direction: Direction.RIGHT,
+                    speed: this.gridSize * 3,
+                    sprite: customAssets.ghosts[i]
+                }));
+            }
+
+            createPellets() {
+                const pellets = [];
+                const rows = this.grid.length;
+                const cols = this.grid[0].length;
+
+                for (let y = 0; y < rows; y++) {
+                    for (let x = 0; x < cols; x++) {
+                        if (this.grid[y][x] === 0) {
+                            if (x === 12 && y === 14) continue;
+                            if (x >= 10 && x <= 14 && y >= 7 && y <= 9) continue;
+
+                            const isPowerPellet = Math.random() < 0.1;
+                            pellets.push({
+                                x: x * this.gridSize + this.gridSize / 2,
+                                y: y * this.gridSize + this.gridSize / 2,
+                                isPower: isPowerPellet,
+                                sprite: isPowerPellet ? customAssets.powerPellet : customAssets.pellet
+                            });
+                        }
+                    }
+                }
+                return pellets;
+            }
+
+            setupInput() {
+                this.keys = {};
+                window.addEventListener('keydown', (e) => {
+                    this.keys[e.code] = true;
+                    if (e.code === 'Space') {
+                        this.togglePause();
+                        e.preventDefault();
+                    }
+                });
+                window.addEventListener('keyup', (e) => {
+                    this.keys[e.code] = false;
+                });
+            }
+
+            getInputDirection() {
+                if (this.keys['ArrowUp'] || this.keys['KeyW']) return Direction.UP;
+                if (this.keys['ArrowDown'] || this.keys['KeyS']) return Direction.DOWN;
+                if (this.keys['ArrowLeft'] || this.keys['KeyA']) return Direction.LEFT;
+                if (this.keys['ArrowRight'] || this.keys['KeyD']) return Direction.RIGHT;
+                return Direction.NONE;
+            }
+
+            start() {
+                if (this.running) return;
+                this.running = true;
+                this.gameState = GameState.PLAYING;
+                this.lastTime = performance.now();
+                this.gameLoop();
+            }
+
+            stop() {
+                this.running = false;
+            }
+
+            togglePause() {
+                if (this.gameState === GameState.PLAYING) {
+                    this.gameState = GameState.PAUSED;
+                } else if (this.gameState === GameState.PAUSED) {
+                    this.gameState = GameState.PLAYING;
+                }
+            }
+
+            gameLoop = () => {
+                if (!this.running) return;
+
+                const currentTime = performance.now();
+                const deltaTime = (currentTime - this.lastTime) / 1000;
+                this.lastTime = currentTime;
+
+                if (this.gameState === GameState.PLAYING) {
+                    this.update(deltaTime);
+                }
+                this.render();
+
+                requestAnimationFrame(this.gameLoop);
+            };
+
+            update(dt) {
+                // Power mode timer
+                if (this.powerMode) {
+                    this.powerModeTimer -= dt;
+                    if (this.powerModeTimer <= 0) {
+                        this.powerMode = false;
+                    }
+                }
+
+                // Update player
+                const input = this.getInputDirection();
+                if (input !== Direction.NONE) {
+                    if (this.canMove(this.player, input, dt)) {
+                        this.player.direction = input;
+                    }
+                }
+                if (this.player.direction !== Direction.NONE) {
+                    this.moveEntity(this.player, dt);
+                }
+
+                // Update ghosts
+                this.ghosts.forEach(ghost => {
+                    if (Math.random() < 0.02) {
+                        const dirs = [Direction.UP, Direction.DOWN, Direction.LEFT, Direction.RIGHT];
+                        ghost.direction = dirs[Math.floor(Math.random() * dirs.length)];
+                    }
+                    this.moveEntity(ghost, dt);
+                });
+
+                // Check collisions
+                this.checkCollisions();
+
+                // Win/lose conditions
+                if (this.pellets.length === 0) this.gameState = GameState.WIN;
+                if (this.lives <= 0) this.gameState = GameState.GAME_OVER;
+            }
+
+            canMove(entity, direction, dt) {
+                const nextX = entity.x;
+                const nextY = entity.y;
+                let testX = nextX, testY = nextY;
+
+                switch (direction) {
+                    case Direction.UP: testY -= entity.speed * dt; break;
+                    case Direction.DOWN: testY += entity.speed * dt; break;
+                    case Direction.LEFT: testX -= entity.speed * dt; break;
+                    case Direction.RIGHT: testX += entity.speed * dt; break;
+                }
+
+                const gridX = Math.floor(testX / this.gridSize);
+                const gridY = Math.floor(testY / this.gridSize);
+
+                return this.grid[gridY]?.[gridX] !== 1;
+            }
+
+            moveEntity(entity, dt) {
+                if (!this.canMove(entity, entity.direction, dt)) {
+                    entity.direction = Direction.NONE;
+                    return;
+                }
+
+                switch (entity.direction) {
+                    case Direction.UP: entity.y -= entity.speed * dt; break;
+                    case Direction.DOWN: entity.y += entity.speed * dt; break;
+                    case Direction.LEFT: entity.x -= entity.speed * dt; break;
+                    case Direction.RIGHT: entity.x += entity.speed * dt; break;
+                }
+            }
+
+            checkCollisions() {
+                // Pellet collisions
+                for (let i = this.pellets.length - 1; i >= 0; i--) {
+                    const pellet = this.pellets[i];
+                    const dist = Math.hypot(this.player.x - pellet.x, this.player.y - pellet.y);
+                    if (dist < this.gridSize) {
+                        this.pellets.splice(i, 1);
+                        this.score += pellet.isPower ? 50 : 10;
+                        if (pellet.isPower) {
+                            this.powerMode = true;
+                            this.powerModeTimer = this.POWER_MODE_DURATION;
+                        }
+                    }
+                }
+
+                // Ghost collisions
+                this.ghosts.forEach(ghost => {
+                    const dist = Math.hypot(this.player.x - ghost.x, this.player.y - ghost.y);
+                    if (dist < this.gridSize) {
+                        if (this.powerMode) {
+                            this.score += 200;
+                            ghost.x = 12 * this.gridSize;
+                            ghost.y = 7 * this.gridSize;
+                        } else {
+                            this.lives--;
+                            this.player.x = 12 * this.gridSize;
+                            this.player.y = 14 * this.gridSize;
+                            this.player.direction = Direction.NONE;
+                        }
+                    }
+                });
+            }
+
+            render() {
+                // Clear
+                this.ctx.fillStyle = '#0a0014';
+                this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+                // Draw maze
+                this.drawMaze();
+
+                // Draw pellets
+                this.pellets.forEach(pellet => {
+                    this.ctx.font = `${this.gridSize / 2}px Arial`;
+                    this.ctx.textAlign = 'center';
+                    this.ctx.textBaseline = 'middle';
+                    this.ctx.fillText(pellet.sprite, pellet.x, pellet.y);
+                });
+
+                // Draw ghosts
+                this.ghosts.forEach(ghost => {
+                    this.ctx.font = `${this.gridSize}px Arial`;
+                    this.ctx.textAlign = 'center';
+                    this.ctx.textBaseline = 'middle';
+                    const sprite = this.powerMode ? '😱' : ghost.sprite;
+                    this.ctx.fillText(sprite, ghost.x + this.gridSize / 2, ghost.y + this.gridSize / 2);
+                });
+
+                // Draw player
+                this.ctx.font = `${this.gridSize}px Arial`;
+                this.ctx.fillText(this.player.sprite, this.player.x + this.gridSize / 2, this.player.y + this.gridSize / 2);
+
+                // Draw UI
+                this.drawUI();
+            }
+
+            drawMaze() {
+                this.ctx.fillStyle = '#2d1b4e';
+                this.ctx.strokeStyle = '#7209b7';
+                this.ctx.lineWidth = 2;
+
+                for (let y = 0; y < this.grid.length; y++) {
+                    for (let x = 0; x < this.grid[0].length; x++) {
+                        if (this.grid[y][x] === 1) {
+                            this.ctx.fillRect(x * this.gridSize, y * this.gridSize, this.gridSize, this.gridSize);
+                            this.ctx.strokeRect(x * this.gridSize, y * this.gridSize, this.gridSize, this.gridSize);
+                        }
+                    }
+                }
+            }
+
+            drawUI() {
+                this.ctx.fillStyle = '#00f5ff';
+                this.ctx.font = 'bold 20px monospace';
+                this.ctx.textAlign = 'left';
+                this.ctx.fillText(`SCORE: ${this.score}`, 20, 30);
+                this.ctx.fillText(`LIVES: ${'❤️'.repeat(this.lives)}`, 20, 60);
+
+                if (this.powerMode) {
+                    this.ctx.fillStyle = '#ff006e';
+                    this.ctx.textAlign = 'right';
+                    this.ctx.fillText(`POWER: ${this.powerModeTimer.toFixed(1)}s`, this.canvas.width - 20, 30);
+                }
+
+                if (this.gameState === GameState.PAUSED) {
+                    this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+                    this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+                    this.ctx.fillStyle = '#00f5ff';
+                    this.ctx.font = 'bold 48px monospace';
+                    this.ctx.textAlign = 'center';
+                    this.ctx.fillText('PAUSED', this.canvas.width / 2, this.canvas.height / 2);
+                }
+
+                if (this.gameState === GameState.GAME_OVER) {
+                    this.ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+                    this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+                    this.ctx.fillStyle = '#ff006e';
+                    this.ctx.font = 'bold 64px monospace';
+                    this.ctx.textAlign = 'center';
+                    this.ctx.fillText('GAME OVER', this.canvas.width / 2, this.canvas.height / 2 - 40);
+                    this.ctx.font = 'bold 24px monospace';
+                    this.ctx.fillStyle = '#00f5ff';
+                    this.ctx.fillText(`Final Score: ${this.score}`, this.canvas.width / 2, this.canvas.height / 2 + 20);
+                }
+
+                if (this.gameState === GameState.WIN) {
+                    this.ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+                    this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+                    this.ctx.fillStyle = '#00ff00';
+                    this.ctx.font = 'bold 64px monospace';
+                    this.ctx.textAlign = 'center';
+                    this.ctx.fillText('YOU WIN!', this.canvas.width / 2, this.canvas.height / 2 - 40);
+                    this.ctx.font = 'bold 24px monospace';
+                    this.ctx.fillStyle = '#00f5ff';
+                    this.ctx.fillText(`Score: ${this.score}`, this.canvas.width / 2, this.canvas.height / 2 + 20);
+                }
+            }
+        }
+
+        // Global game instance
+        let game = null;
+
+        window.startGame = function() {
+            const canvas = document.getElementById('gameCanvas');
+            if (!game) {
+                game = new PacManGame(canvas);
+            } else {
+                game.reset();
+            }
+            game.start();
+        };
+
+        window.pauseGame = function() {
+            if (game) game.togglePause();
+        };
+
+        window.resetGame = function() {
+            if (game) {
+                game.stop();
+                game.reset();
+                game.start();
+            }
+        };
+
+        window.applyCustomAssets = function() {
+            customAssets = {
+                player: document.getElementById('playerSprite').value || '😊',
+                ghosts: [
+                    document.getElementById('ghost1Sprite').value || '👻',
+                    document.getElementById('ghost2Sprite').value || '💀',
+                    document.getElementById('ghost3Sprite').value || '🦇',
+                    document.getElementById('ghost4Sprite').value || '🧛'
+                ],
+                pellet: document.getElementById('pelletSprite').value || '💎',
+                powerPellet: document.getElementById('powerPelletSprite').value || '⭐'
+            };
+            resetGame();
+        };
+
+        // Auto-start on load
+        window.addEventListener('load', () => {
+            console.log('⚡ ThunderVerse Pac-Man ready! Use arrow keys or WASD to play.');
+        });
+    </script>
+</body>
+</html>

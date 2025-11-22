@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ThunderVerse - Pure JS Game Engine</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'SF Mono', 'Courier New', monospace;
+            background: linear-gradient(135deg, #0a0014 0%, #1a0f2e 100%);
+            color: #fff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+        
+        .container {
+            text-align: center;
+        }
+        
+        .header {
+            margin-bottom: 2rem;
+        }
+        
+        .logo {
+            font-size: 3rem;
+            font-weight: 900;
+            background: linear-gradient(135deg, #7209b7, #ff006e, #00f5ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 0 30px rgba(255, 0, 110, 0.5);
+            animation: pulse 2s ease-in-out infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+        
+        .tagline {
+            margin-top: 0.5rem;
+            opacity: 0.8;
+            font-size: 1.1rem;
+        }
+        
+        .game-wrapper {
+            position: relative;
+            background: rgba(26, 15, 46, 0.8);
+            padding: 2rem;
+            border-radius: 20px;
+            box-shadow: 0 10px 50px rgba(0, 0, 0, 0.5);
+            border: 2px solid #2d1b4e;
+        }
+        
+        .stats {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 1rem;
+            padding: 1rem;
+            background: rgba(10, 0, 20, 0.5);
+            border-radius: 10px;
+            gap: 2rem;
+        }
+        
+        .stat {
+            text-align: center;
+        }
+        
+        .stat-label {
+            display: block;
+            font-size: 0.8rem;
+            opacity: 0.6;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+        }
+        
+        .stat-value {
+            display: block;
+            font-size: 1.5rem;
+            font-weight: 900;
+            color: #00f5ff;
+            text-shadow: 0 0 10px #00f5ff;
+        }
+        
+        canvas {
+            display: block;
+            border-radius: 10px;
+            box-shadow: 0 0 30px rgba(114, 9, 183, 0.3);
+            image-rendering: pixelated;
+            image-rendering: crisp-edges;
+        }
+        
+        .controls {
+            margin-top: 1rem;
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+        }
+        
+        button {
+            padding: 0.7rem 1.5rem;
+            background: linear-gradient(135deg, #7209b7, #ff006e);
+            border: 2px solid #7209b7;
+            color: white;
+            border-radius: 10px;
+            font-family: inherit;
+            font-size: 0.9rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 30px rgba(114, 9, 183, 0.6);
+        }
+        
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .overlay {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(10, 0, 20, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 3rem;
+            border-radius: 20px;
+            text-align: center;
+            min-width: 300px;
+        }
+        
+        .overlay h2 {
+            font-size: 2.5rem;
+            background: linear-gradient(135deg, #ff006e, #00f5ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 1rem;
+        }
+        
+        .overlay p {
+            margin: 0.5rem 0;
+            opacity: 0.9;
+        }
+        
+        .hidden {
+            display: none;
+        }
+        
+        .info {
+            margin-top: 1rem;
+            opacity: 0.7;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">⚡ ThunderVerse</div>
+            <div class="tagline">Pure JavaScript Game Engine - Zero Dependencies</div>
+        </div>
+        
+        <div class="game-wrapper">
+            <div class="stats">
+                <div class="stat">
+                    <span class="stat-label">Score</span>
+                    <span class="stat-value" id="score">0</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">Lives</span>
+                    <span class="stat-value" id="lives">❤️ ❤️ ❤️</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">Level</span>
+                    <span class="stat-value" id="level">1</span>
+                </div>
+            </div>
+            
+            <div style="position: relative;">
+                <canvas id="gameCanvas" width="608" height="704"></canvas>
+                
+                <div id="startOverlay" class="overlay">
+                    <h2>Ready?</h2>
+                    <p>Use Arrow Keys or WASD to move</p>
+                    <p>Collect all pills to win!</p>
+                    <p>Avoid ghosts (or eat them with power-ups)</p>
+                    <button onclick="game.start()">Start Game</button>
+                </div>
+                
+                <div id="gameOverOverlay" class="overlay hidden">
+                    <h2>Game Over!</h2>
+                    <p>Final Score: <span id="finalScore">0</span></p>
+                    <button onclick="game.restart()">Try Again</button>
+                </div>
+                
+                <div id="victoryOverlay" class="overlay hidden">
+                    <h2>Victory! 🎉</h2>
+                    <p>Score: <span id="victoryScore">0</span></p>
+                    <button onclick="game.restart()">Play Again</button>
+                </div>
+            </div>
+            
+            <div class="controls">
+                <button onclick="game.pause()" id="pauseBtn">Pause</button>
+                <button onclick="game.restart()">Restart</button>
+            </div>
+            
+            <div class="info">
+                Controls: Arrow Keys or WASD • Built with pure JavaScript • No frameworks
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ====================================
+        // THUNDERENGINE - Pure JS Game Engine
+        // ====================================
+        
+        class ThunderEngine {
+            constructor(canvas) {
+                this.canvas = canvas;
+                this.ctx = canvas.getContext('2d');
+                this.entities = new Map();
+                this.running = false;
+                this.paused = false;
+                this.lastTime = 0;
+                this.tileSize = 32;
+                
+                // Game state
+                this.state = {
+                    score: 0,
+                    lives: 3,
+                    level: 1,
+                    status: 'idle', // idle, playing, paused, gameover, victory
+                    pillsRemaining: 0,
+                    powerUpActive: false,
+                    powerUpTimer: 0
+                };
+                
+                // Map data (0=wall, 1=pill, 2=empty, 3=power-pill, 4=player-spawn, 5=ghost-spawn)
+                this.map = [
+                    [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+                    [0,1,1,1,1,1,1,1,1,0,1,1,1,1,1,1,1,1,0],
+                    [0,3,0,0,1,0,0,0,1,0,1,0,0,0,1,0,0,3,0],
+                    [0,1,0,0,1,0,0,0,1,0,1,0,0,0,1,0,0,1,0],
+                    [0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0],
+                    [0,1,0,0,1,0,1,0,0,0,0,0,1,0,1,0,0,1,0],
+                    [0,1,1,1,1,0,1,1,1,0,1,1,1,0,1,1,1,1,0],
+                    [0,0,0,0,1,0,0,0,2,0,2,0,0,0,1,0,0,0,0],
+                    [2,2,2,0,1,0,2,2,2,5,2,2,2,0,1,0,2,2,2],
+                    [0,0,0,0,1,0,2,0,5,5,5,0,2,0,1,0,0,0,0],
+                    [2,2,2,2,1,2,2,0,0,0,0,0,2,2,1,2,2,2,2],
+                    [0,0,0,0,1,0,2,0,0,0,0,0,2,0,1,0,0,0,0],
+                    [2,2,2,0,1,0,2,2,2,2,2,2,2,0,1,0,2,2,2],
+                    [0,0,0,0,1,0,1,0,0,0,0,0,1,0,1,0,0,0,0],
+                    [0,1,1,1,1,1,1,1,1,0,1,1,1,1,1,1,1,1,0],
+                    [0,1,0,0,1,0,0,0,1,0,1,0,0,0,1,0,0,1,0],
+                    [0,3,1,0,1,1,1,1,1,4,1,1,1,1,1,0,1,3,0],
+                    [0,0,1,0,1,0,1,0,0,0,0,0,1,0,1,0,1,0,0],
+                    [0,1,1,1,1,0,1,1,1,0,1,1,1,0,1,1,1,1,0],
+                    [0,1,0,0,0,0,0,0,1,0,1,0,0,0,0,0,0,1,0],
+                    [0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0],
+                    [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+                ];
+                
+                this.mapWidth = this.map[0].length;
+                this.mapHeight = this.map.length;
+                
+                // Initialize entities
+                this.initEntities();
+                
+                // Input
+                this.keys = {};
+                this.setupInput();
+            }
+            
+            initEntities() {
+                // Find spawns
+                for (let y = 0; y < this.mapHeight; y++) {
+                    for (let x = 0; x < this.mapWidth; x++) {
+                        if (this.map[y][x] === 4) {
+                            // Player spawn
+                            this.player = {
+                                x: x, y: y,
+                                dx: 1, dy: 0,
+                                targetDx: 1, targetDy: 0,
+                                speed: 3,
+                                color: '#FFFF00'
+                            };
+                        } else if (this.map[y][x] === 5) {
+                            // Ghost spawn
+                            const id = `ghost${this.entities.size}`;
+                            const colors = ['#FF0000', '#FF69B4', '#00FFFF', '#FFA500'];
+                            const personalities = ['chase', 'ambush', 'patrol', 'random'];
+                            this.entities.set(id, {
+                                type: 'ghost',
+                                x: x, y: y,
+                                dx: -1, dy: 0,
+                                speed: 2,
+                                color: colors[this.entities.size % 4],
+                                personality: personalities[this.entities.size % 4],
+                                frightened: false,
+                                frightenedTimer: 0
+                            });
+                        }
+                    }
+                }
+                
+                // Count pills
+                this.state.pillsRemaining = this.countPills();
+            }
+            
+            countPills() {
+                let count = 0;
+                for (let y = 0; y < this.mapHeight; y++) {
+                    for (let x = 0; x < this.mapWidth; x++) {
+                        if (this.map[y][x] === 1 || this.map[y][x] === 3) count++;
+                    }
+                }
+                return count;
+            }
+            
+            setupInput() {
+                window.addEventListener('keydown', (e) => {
+                    this.keys[e.key] = true;
+                    
+                    if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+                        e.preventDefault();
+                    }
+                    
+                    if (this.state.status === 'playing') {
+                        if (e.key === 'ArrowUp' || e.key === 'w') {
+                            this.player.targetDx = 0; this.player.targetDy = -1;
+                        } else if (e.key === 'ArrowDown' || e.key === 's') {
+                            this.player.targetDx = 0; this.player.targetDy = 1;
+                        } else if (e.key === 'ArrowLeft' || e.key === 'a') {
+                            this.player.targetDx = -1; this.player.targetDy = 0;
+                        } else if (e.key === 'ArrowRight' || e.key === 'd') {
+                            this.player.targetDx = 1; this.player.targetDy = 0;
+                        }
+                    }
+                });
+                
+                window.addEventListener('keyup', (e) => {
+                    this.keys[e.key] = false;
+                });
+            }
+            
+            start() {
+                document.getElementById('startOverlay').classList.add('hidden');
+                this.state.status = 'playing';
+                this.running = true;
+                this.lastTime = performance.now();
+                this.loop(this.lastTime);
+            }
+            
+            pause() {
+                if (this.state.status === 'playing') {
+                    this.paused = true;
+                    this.state.status = 'paused';
+                    document.getElementById('pauseBtn').textContent = 'Resume';
+                } else if (this.state.status === 'paused') {
+                    this.paused = false;
+                    this.state.status = 'playing';
+                    document.getElementById('pauseBtn').textContent = 'Pause';
+                    this.lastTime = performance.now();
+                }
+            }
+            
+            restart() {
+                document.getElementById('gameOverOverlay').classList.add('hidden');
+                document.getElementById('victoryOverlay').classList.add('hidden');
+                
+                // Reset state
+                this.state.score = 0;
+                this.state.lives = 3;
+                this.state.level = 1;
+                this.state.status = 'idle';
+                this.state.powerUpActive = false;
+                this.state.powerUpTimer = 0;
+                
+                // Reset map
+                this.map = this.map.map(row => row.map(tile => {
+                    if (tile === 2) return 1; // Restore pills
+                    return tile;
+                }));
+                
+                // Reset entities
+                this.entities.clear();
+                this.initEntities();
+                
+                this.updateUI();
+                this.render();
+                document.getElementById('startOverlay').classList.remove('hidden');
+            }
+            
+            loop(currentTime) {
+                if (!this.running) return;
+                
+                const deltaTime = Math.min((currentTime - this.lastTime) / 1000, 0.1);
+                this.lastTime = currentTime;
+                
+                if (!this.paused) {
+                    this.update(deltaTime);
+                }
+                
+                this.render();
+                requestAnimationFrame((t) => this.loop(t));
+            }
+            
+            update(dt) {
+                if (this.state.status !== 'playing') return;
+                
+                // Update player
+                this.updatePlayer(dt);
+                
+                // Update ghosts
+                this.entities.forEach(entity => {
+                    if (entity.type === 'ghost') {
+                        this.updateGhost(entity, dt);
+                    }
+                });
+                
+                // Check collisions
+                this.checkCollisions();
+                
+                // Power-up timer
+                if (this.state.powerUpActive) {
+                    this.state.powerUpTimer -= dt;
+                    if (this.state.powerUpTimer <= 0) {
+                        this.state.powerUpActive = false;
+                        this.entities.forEach(e => {
+                            if (e.type === 'ghost') e.frightened = false;
+                        });
+                    }
+                }
+                
+                // Victory check
+                if (this.state.pillsRemaining === 0) {
+                    this.victory();
+                }
+            }
+            
+            updatePlayer(dt) {
+                const p = this.player;
+                const speed = p.speed * dt;
+                
+                // Try target direction
+                if (p.targetDx !== p.dx || p.targetDy !== p.dy) {
+                    const nextX = p.x + p.targetDx * speed;
+                    const nextY = p.y + p.targetDy * speed;
+                    if (this.canMove(nextX, nextY)) {
+                        p.dx = p.targetDx;
+                        p.dy = p.targetDy;
+                    }
+                }
+                
+                // Move
+                const nextX = p.x + p.dx * speed;
+                const nextY = p.y + p.dy * speed;
+                if (this.canMove(nextX, nextY)) {
+                    p.x = nextX;
+                    p.y = nextY;
+                }
+                
+                // Wrap around
+                if (p.x < 0) p.x = this.mapWidth - 1;
+                if (p.x >= this.mapWidth) p.x = 0;
+                
+                // Collect pills
+                const tileX = Math.floor(p.x);
+                const tileY = Math.floor(p.y);
+                const tile = this.map[tileY][tileX];
+                
+                if (tile === 1) {
+                    this.map[tileY][tileX] = 2;
+                    this.state.score += 10;
+                    this.state.pillsRemaining--;
+                    this.updateUI();
+                } else if (tile === 3) {
+                    this.map[tileY][tileX] = 2;
+                    this.state.score += 50;
+                    this.state.pillsRemaining--;
+                    this.state.powerUpActive = true;
+                    this.state.powerUpTimer = 7;
+                    this.entities.forEach(e => {
+                        if (e.type === 'ghost') {
+                            e.frightened = true;
+                            e.frightenedTimer = 7;
+                        }
+                    });
+                    this.updateUI();
+                }
+            }
+            
+            updateGhost(ghost, dt) {
+                const speed = ghost.speed * dt * (ghost.frightened ? 0.7 : 1);
+                
+                // Simple AI
+                if (Math.random() < 0.02) {
+                    const dirs = [{x:1,y:0}, {x:-1,y:0}, {x:0,y:1}, {x:0,y:-1}];
+                    const validDirs = dirs.filter(d => {
+                        const nx = ghost.x + d.x * 0.5;
+                        const ny = ghost.y + d.y * 0.5;
+                        return this.canMove(nx, ny) && !(d.x === -ghost.dx && d.y === -ghost.dy);
+                    });
+                    if (validDirs.length > 0) {
+                        const dir = validDirs[Math.floor(Math.random() * validDirs.length)];
+                        ghost.dx = dir.x;
+                        ghost.dy = dir.y;
+                    }
+                }
+                
+                const nextX = ghost.x + ghost.dx * speed;
+                const nextY = ghost.y + ghost.dy * speed;
+                if (this.canMove(nextX, nextY)) {
+                    ghost.x = nextX;
+                    ghost.y = nextY;
+                } else {
+                    // Hit wall, reverse
+                    ghost.dx *= -1;
+                    ghost.dy *= -1;
+                }
+                
+                // Wrap
+                if (ghost.x < 0) ghost.x = this.mapWidth - 1;
+                if (ghost.x >= this.mapWidth) ghost.x = 0;
+            }
+            
+            canMove(x, y) {
+                const tileX = Math.floor(x);
+                const tileY = Math.floor(y);
+                if (tileX < 0 || tileX >= this.mapWidth || tileY < 0 || tileY >= this.mapHeight) {
+                    return false;
+                }
+                return this.map[tileY][tileX] !== 0;
+            }
+            
+            checkCollisions() {
+                this.entities.forEach(entity => {
+                    if (entity.type !== 'ghost') return;
+                    
+                    const dx = entity.x - this.player.x;
+                    const dy = entity.y - this.player.y;
+                    const dist = Math.sqrt(dx*dx + dy*dy);
+                    
+                    if (dist < 0.5) {
+                        if (entity.frightened) {
+                            // Eat ghost
+                            entity.x = 9;
+                            entity.y = 9;
+                            entity.frightened = false;
+                            this.state.score += 200;
+                            this.updateUI();
+                        } else {
+                            // Die
+                            this.state.lives--;
+                            this.updateUI();
+                            if (this.state.lives <= 0) {
+                                this.gameOver();
+                            } else {
+                                this.resetPositions();
+                            }
+                        }
+                    }
+                });
+            }
+            
+            resetPositions() {
+                this.player.x = 9;
+                this.player.y = 16;
+                this.player.dx = 1;
+                this.player.dy = 0;
+            }
+            
+            victory() {
+                this.state.status = 'victory';
+                this.running = false;
+                document.getElementById('victoryScore').textContent = this.state.score;
+                document.getElementById('victoryOverlay').classList.remove('hidden');
+            }
+            
+            gameOver() {
+                this.state.status = 'gameover';
+                this.running = false;
+                document.getElementById('finalScore').textContent = this.state.score;
+                document.getElementById('gameOverOverlay').classList.remove('hidden');
+            }
+            
+            render() {
+                const ctx = this.ctx;
+                const ts = this.tileSize;
+                
+                // Clear
+                ctx.fillStyle = '#000000';
+                ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+                
+                // Draw map
+                for (let y = 0; y < this.mapHeight; y++) {
+                    for (let x = 0; x < this.mapWidth; x++) {
+                        const tile = this.map[y][x];
+                        
+                        if (tile === 0) {
+                            // Wall
+                            ctx.fillStyle = '#2222FF';
+                            ctx.fillRect(x * ts, y * ts, ts, ts);
+                        } else if (tile === 1) {
+                            // Pill
+                            ctx.fillStyle = '#FFFFFF';
+                            ctx.beginPath();
+                            ctx.arc(x * ts + ts/2, y * ts + ts/2, 3, 0, Math.PI * 2);
+                            ctx.fill();
+                        } else if (tile === 3) {
+                            // Power pill
+                            ctx.fillStyle = '#FFFF00';
+                            ctx.beginPath();
+                            ctx.arc(x * ts + ts/2, y * ts + ts/2, 6, 0, Math.PI * 2);
+                            ctx.fill();
+                        }
+                    }
+                }
+                
+                // Draw player
+                ctx.fillStyle = this.player.color;
+                ctx.beginPath();
+                ctx.arc(
+                    this.player.x * ts + ts/2,
+                    this.player.y * ts + ts/2,
+                    ts/2 - 2,
+                    0,
+                    Math.PI * 2
+                );
+                ctx.fill();
+                
+                // Draw ghosts
+                this.entities.forEach(entity => {
+                    if (entity.type === 'ghost') {
+                        ctx.fillStyle = entity.frightened ? '#0000FF' : entity.color;
+                        ctx.beginPath();
+                        ctx.arc(
+                            entity.x * ts + ts/2,
+                            entity.y * ts + ts/2,
+                            ts/2 - 2,
+                            0,
+                            Math.PI * 2
+                        );
+                        ctx.fill();
+                    }
+                });
+            }
+            
+            updateUI() {
+                document.getElementById('score').textContent = this.state.score;
+                document.getElementById('lives').textContent = '❤️ '.repeat(this.state.lives);
+                document.getElementById('level').textContent = this.state.level;
+            }
+        }
+        
+        // Initialize game
+        const canvas = document.getElementById('gameCanvas');
+        const game = new ThunderEngine(canvas);
+        game.render();
+    </script>
+</body>
+</html>

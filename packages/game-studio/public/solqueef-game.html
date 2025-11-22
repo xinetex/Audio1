@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>$SOLQUEEF - Meme Coin Pac-Man</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Comic Sans MS', 'Arial', sans-serif;
+            background: linear-gradient(135deg, #14F195 0%, #9945FF 50%, #14F195 100%);
+            background-size: 400% 400%;
+            animation: solanaGradient 15s ease infinite;
+            color: #fff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+        
+        @keyframes solanaGradient {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        
+        .container {
+            text-align: center;
+        }
+        
+        .header {
+            margin-bottom: 1rem;
+            animation: bounce 2s ease-in-out infinite;
+        }
+        
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-20px); }
+        }
+        
+        .logo {
+            font-size: 4rem;
+            font-weight: 900;
+            text-shadow: 
+                0 0 10px #14F195,
+                0 0 20px #14F195,
+                0 0 30px #9945FF,
+                4px 4px 0px rgba(0,0,0,0.3);
+            letter-spacing: 0.1em;
+            margin-bottom: 0.5rem;
+        }
+        
+        .coin-ticker {
+            font-size: 2.5rem;
+            font-weight: 900;
+            background: linear-gradient(45deg, #FFD700, #FFA500, #FFD700);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+            animation: shimmer 2s ease-in-out infinite;
+        }
+        
+        @keyframes shimmer {
+            0%, 100% { filter: brightness(1); }
+            50% { filter: brightness(1.3); }
+        }
+        
+        .tagline {
+            margin-top: 0.5rem;
+            font-size: 1.2rem;
+            opacity: 0.9;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .game-wrapper {
+            position: relative;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 2rem;
+            border-radius: 20px;
+            box-shadow: 
+                0 10px 50px rgba(0, 0, 0, 0.5),
+                0 0 30px rgba(153, 69, 255, 0.5),
+                0 0 50px rgba(20, 241, 149, 0.3);
+            border: 3px solid #14F195;
+        }
+        
+        .stats {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 1rem;
+            padding: 1rem;
+            background: linear-gradient(135deg, rgba(153, 69, 255, 0.3), rgba(20, 241, 149, 0.3));
+            border-radius: 10px;
+            gap: 2rem;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .stat {
+            text-align: center;
+        }
+        
+        .stat-label {
+            display: block;
+            font-size: 0.8rem;
+            opacity: 0.8;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: 0.3rem;
+        }
+        
+        .stat-value {
+            display: block;
+            font-size: 1.5rem;
+            font-weight: 900;
+            color: #FFD700;
+            text-shadow: 0 0 10px #FFD700, 2px 2px 0px rgba(0,0,0,0.3);
+        }
+        
+        canvas {
+            display: block;
+            border-radius: 10px;
+            box-shadow: 0 0 30px rgba(153, 69, 255, 0.5);
+            image-rendering: pixelated;
+            image-rendering: crisp-edges;
+            border: 3px solid #9945FF;
+        }
+        
+        .controls {
+            margin-top: 1rem;
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        
+        button {
+            padding: 0.8rem 1.5rem;
+            background: linear-gradient(135deg, #9945FF, #14F195);
+            border: 3px solid #14F195;
+            color: white;
+            border-radius: 15px;
+            font-family: inherit;
+            font-size: 1rem;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+            box-shadow: 0 4px 15px rgba(153, 69, 255, 0.4);
+        }
+        
+        button:hover {
+            transform: translateY(-3px) scale(1.05);
+            box-shadow: 0 8px 30px rgba(20, 241, 149, 0.6);
+            border-color: #FFD700;
+        }
+        
+        button:active {
+            transform: translateY(-1px);
+        }
+        
+        .overlay {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 3rem;
+            border-radius: 20px;
+            text-align: center;
+            min-width: 350px;
+            border: 3px solid #14F195;
+            box-shadow: 0 0 50px rgba(20, 241, 149, 0.5);
+        }
+        
+        .overlay h2 {
+            font-size: 2.5rem;
+            background: linear-gradient(135deg, #FFD700, #14F195);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 1rem;
+            text-shadow: 0 0 30px rgba(255, 215, 0, 0.5);
+        }
+        
+        .overlay p {
+            margin: 0.5rem 0;
+            opacity: 0.9;
+            font-size: 1.1rem;
+        }
+        
+        .hidden {
+            display: none;
+        }
+        
+        .info {
+            margin-top: 1rem;
+            opacity: 0.8;
+            font-size: 0.9rem;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
+        
+        .meme-text {
+            font-size: 1.5rem;
+            margin: 1rem 0;
+            animation: rainbow 3s linear infinite;
+        }
+        
+        @keyframes rainbow {
+            0% { color: #FF0000; }
+            17% { color: #FF7F00; }
+            33% { color: #FFFF00; }
+            50% { color: #00FF00; }
+            67% { color: #0000FF; }
+            83% { color: #8B00FF; }
+            100% { color: #FF0000; }
+        }
+        
+        .crypto-badge {
+            display: inline-block;
+            background: linear-gradient(135deg, #FFD700, #FFA500);
+            color: #000;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-weight: 900;
+            margin: 0.5rem;
+            box-shadow: 0 4px 15px rgba(255, 215, 0, 0.4);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">⚡ SOLQUEEF ⚡</div>
+            <div class="coin-ticker">$SOLQUEEF</div>
+            <div class="tagline">🚀 The Meme Coin Game That Goes BOOM 💨</div>
+        </div>
+        
+        <div class="game-wrapper">
+            <div class="stats">
+                <div class="stat">
+                    <span class="stat-label">$QUEEF Earned</span>
+                    <span class="stat-value" id="score">0</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">Lives</span>
+                    <span class="stat-value" id="lives">❤️ ❤️ ❤️</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">Level</span>
+                    <span class="stat-value" id="level">1</span>
+                </div>
+            </div>
+            
+            <div style="position: relative;">
+                <canvas id="gameCanvas" width="608" height="704"></canvas>
+                
+                <div id="startOverlay" class="overlay">
+                    <h2>Ready to QUEEF? 💨</h2>
+                    <p class="meme-text">TO THE MOON! 🚀</p>
+                    <p>Use Arrow Keys or WASD to move</p>
+                    <p>Collect all $QUEEF tokens!</p>
+                    <p>Avoid the FUD spreaders!</p>
+                    <div class="crypto-badge">HODL STRONG 💎🙌</div>
+                    <br><br>
+                    <button onclick="game.start()">🚀 START GAME 🚀</button>
+                </div>
+                
+                <div id="gameOverOverlay" class="overlay hidden">
+                    <h2>RUG PULLED! 😱</h2>
+                    <p>Final $QUEEF: <span id="finalScore">0</span></p>
+                    <p class="meme-text">PAPER HANDS! 📄🙌</p>
+                    <button onclick="game.restart()">TRY AGAIN</button>
+                </div>
+                
+                <div id="victoryOverlay" class="overlay hidden">
+                    <h2>TO THE MOON! 🚀🌙</h2>
+                    <p>$QUEEF Earned: <span id="victoryScore">0</span></p>
+                    <p class="meme-text">DIAMOND HANDS! 💎🙌</p>
+                    <div class="crypto-badge">WHALE ALERT! 🐋</div>
+                    <br><br>
+                    <button onclick="game.restart()">PLAY AGAIN</button>
+                </div>
+            </div>
+            
+            <div class="controls">
+                <button onclick="game.pause()" id="pauseBtn">⏸️ PAUSE</button>
+                <button onclick="game.restart()">🔄 RESTART</button>
+                <button onclick="alert('Coming Soon: Mint your high score as NFT!')">🎨 MINT NFT</button>
+            </div>
+            
+            <div class="info">
+                🎮 Controls: Arrow Keys or WASD • 💰 Powered by Solana • 🔥 Built on ThunderEngine
+                <br>
+                <span class="crypto-badge" style="font-size: 0.8rem; margin-top: 0.5rem;">DYOR • NFA • WAGMI</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // $SOLQUEEF GAME ENGINE
+        class SolqueefGame {
+            constructor(canvas) {
+                this.canvas = canvas;
+                this.ctx = canvas.getContext('2d');
+                this.entities = new Map();
+                this.running = false;
+                this.paused = false;
+                this.lastTime = 0;
+                this.tileSize = 32;
+                
+                // Game state
+                this.state = {
+                    score: 0,
+                    lives: 3,
+                    level: 1,
+                    status: 'idle',
+                    pillsRemaining: 0,
+                    powerUpActive: false,
+                    powerUpTimer: 0
+                };
+                
+                // Map (0=wall, 1=coin, 2=empty, 3=power-coin, 4=player, 5=fud-spreader)
+                this.map = [
+                    [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+                    [0,1,1,1,1,1,1,1,1,0,1,1,1,1,1,1,1,1,0],
+                    [0,3,0,0,1,0,0,0,1,0,1,0,0,0,1,0,0,3,0],
+                    [0,1,0,0,1,0,0,0,1,0,1,0,0,0,1,0,0,1,0],
+                    [0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0],
+                    [0,1,0,0,1,0,1,0,0,0,0,0,1,0,1,0,0,1,0],
+                    [0,1,1,1,1,0,1,1,1,0,1,1,1,0,1,1,1,1,0],
+                    [0,0,0,0,1,0,0,0,2,0,2,0,0,0,1,0,0,0,0],
+                    [2,2,2,0,1,0,2,2,2,5,2,2,2,0,1,0,2,2,2],
+                    [0,0,0,0,1,0,2,0,5,5,5,0,2,0,1,0,0,0,0],
+                    [2,2,2,2,1,2,2,0,0,0,0,0,2,2,1,2,2,2,2],
+                    [0,0,0,0,1,0,2,0,0,0,0,0,2,0,1,0,0,0,0],
+                    [2,2,2,0,1,0,2,2,2,2,2,2,2,0,1,0,2,2,2],
+                    [0,0,0,0,1,0,1,0,0,0,0,0,1,0,1,0,0,0,0],
+                    [0,1,1,1,1,1,1,1,1,0,1,1,1,1,1,1,1,1,0],
+                    [0,1,0,0,1,0,0,0,1,0,1,0,0,0,1,0,0,1,0],
+                    [0,3,1,0,1,1,1,1,1,4,1,1,1,1,1,0,1,3,0],
+                    [0,0,1,0,1,0,1,0,0,0,0,0,1,0,1,0,1,0,0],
+                    [0,1,1,1,1,0,1,1,1,0,1,1,1,0,1,1,1,1,0],
+                    [0,1,0,0,0,0,0,0,1,0,1,0,0,0,0,0,0,1,0],
+                    [0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0],
+                    [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+                ];
+                
+                this.mapWidth = this.map[0].length;
+                this.mapHeight = this.map.length;
+                
+                this.initEntities();
+                this.setupInput();
+            }
+            
+            initEntities() {
+                for (let y = 0; y < this.mapHeight; y++) {
+                    for (let x = 0; x < this.mapWidth; x++) {
+                        if (this.map[y][x] === 4) {
+                            this.player = {
+                                x: x, y: y,
+                                dx: 1, dy: 0,
+                                targetDx: 1, targetDy: 0,
+                                speed: 3,
+                                color: '#FFD700',
+                                emoji: '😎'
+                            };
+                        } else if (this.map[y][x] === 5) {
+                            const id = `fud${this.entities.size}`;
+                            const emojis = ['👑', '👸', '🎮', '💚'];
+                            this.entities.set(id, {
+                                type: 'fud',
+                                x: x, y: y,
+                                dx: -1, dy: 0,
+                                speed: 2,
+                                color: ['#FF0000', '#FF69B4', '#00FFFF', '#00FF00'][this.entities.size % 4],
+                                emoji: emojis[this.entities.size % 4],
+                                frightened: false
+                            });
+                        }
+                    }
+                }
+                this.state.pillsRemaining = this.countPills();
+            }
+            
+            countPills() {
+                let count = 0;
+                for (let y = 0; y < this.mapHeight; y++) {
+                    for (let x = 0; x < this.mapWidth; x++) {
+                        if (this.map[y][x] === 1 || this.map[y][x] === 3) count++;
+                    }
+                }
+                return count;
+            }
+            
+            setupInput() {
+                window.addEventListener('keydown', (e) => {
+                    if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+                        e.preventDefault();
+                    }
+                    
+                    if (this.state.status === 'playing') {
+                        if (e.key === 'ArrowUp' || e.key === 'w') {
+                            this.player.targetDx = 0; this.player.targetDy = -1;
+                        } else if (e.key === 'ArrowDown' || e.key === 's') {
+                            this.player.targetDx = 0; this.player.targetDy = 1;
+                        } else if (e.key === 'ArrowLeft' || e.key === 'a') {
+                            this.player.targetDx = -1; this.player.targetDy = 0;
+                        } else if (e.key === 'ArrowRight' || e.key === 'd') {
+                            this.player.targetDx = 1; this.player.targetDy = 0;
+                        }
+                    }
+                });
+            }
+            
+            start() {
+                document.getElementById('startOverlay').classList.add('hidden');
+                this.state.status = 'playing';
+                this.running = true;
+                this.lastTime = performance.now();
+                this.loop(this.lastTime);
+            }
+            
+            pause() {
+                if (this.state.status === 'playing') {
+                    this.paused = true;
+                    this.state.status = 'paused';
+                    document.getElementById('pauseBtn').innerHTML = '▶️ RESUME';
+                } else if (this.state.status === 'paused') {
+                    this.paused = false;
+                    this.state.status = 'playing';
+                    document.getElementById('pauseBtn').innerHTML = '⏸️ PAUSE';
+                    this.lastTime = performance.now();
+                }
+            }
+            
+            restart() {
+                document.getElementById('gameOverOverlay').classList.add('hidden');
+                document.getElementById('victoryOverlay').classList.add('hidden');
+                
+                this.state.score = 0;
+                this.state.lives = 3;
+                this.state.level = 1;
+                this.state.status = 'idle';
+                this.state.powerUpActive = false;
+                
+                this.map = this.map.map(row => row.map(tile => tile === 2 ? 1 : tile));
+                this.entities.clear();
+                this.initEntities();
+                
+                this.updateUI();
+                this.render();
+                document.getElementById('startOverlay').classList.remove('hidden');
+            }
+            
+            loop(currentTime) {
+                if (!this.running) return;
+                
+                const deltaTime = Math.min((currentTime - this.lastTime) / 1000, 0.1);
+                this.lastTime = currentTime;
+                
+                if (!this.paused) {
+                    this.update(deltaTime);
+                }
+                
+                this.render();
+                requestAnimationFrame((t) => this.loop(t));
+            }
+            
+            update(dt) {
+                if (this.state.status !== 'playing') return;
+                
+                this.updatePlayer(dt);
+                this.entities.forEach(e => {
+                    if (e.type === 'fud') this.updateFud(e, dt);
+                });
+                this.checkCollisions();
+                
+                if (this.state.powerUpActive) {
+                    this.state.powerUpTimer -= dt;
+                    if (this.state.powerUpTimer <= 0) {
+                        this.state.powerUpActive = false;
+                        this.entities.forEach(e => {
+                            if (e.type === 'fud') e.frightened = false;
+                        });
+                    }
+                }
+                
+                if (this.state.pillsRemaining === 0) {
+                    this.victory();
+                }
+            }
+            
+            updatePlayer(dt) {
+                const p = this.player;
+                const speed = p.speed * dt;
+                
+                if (p.targetDx !== p.dx || p.targetDy !== p.dy) {
+                    const nextX = p.x + p.targetDx * speed;
+                    const nextY = p.y + p.targetDy * speed;
+                    if (this.canMove(nextX, nextY)) {
+                        p.dx = p.targetDx;
+                        p.dy = p.targetDy;
+                    }
+                }
+                
+                const nextX = p.x + p.dx * speed;
+                const nextY = p.y + p.dy * speed;
+                if (this.canMove(nextX, nextY)) {
+                    p.x = nextX;
+                    p.y = nextY;
+                }
+                
+                if (p.x < 0) p.x = this.mapWidth - 1;
+                if (p.x >= this.mapWidth) p.x = 0;
+                
+                const tileX = Math.floor(p.x);
+                const tileY = Math.floor(p.y);
+                const tile = this.map[tileY][tileX];
+                
+                if (tile === 1) {
+                    this.map[tileY][tileX] = 2;
+                    this.state.score += 10;
+                    this.state.pillsRemaining--;
+                    this.updateUI();
+                } else if (tile === 3) {
+                    this.map[tileY][tileX] = 2;
+                    this.state.score += 100;
+                    this.state.pillsRemaining--;
+                    this.state.powerUpActive = true;
+                    this.state.powerUpTimer = 7;
+                    this.entities.forEach(e => {
+                        if (e.type === 'fud') e.frightened = true;
+                    });
+                    this.updateUI();
+                }
+            }
+            
+            updateFud(fud, dt) {
+                const speed = fud.speed * dt * (fud.frightened ? 0.7 : 1);
+                
+                if (Math.random() < 0.02) {
+                    const dirs = [{x:1,y:0}, {x:-1,y:0}, {x:0,y:1}, {x:0,y:-1}];
+                    const validDirs = dirs.filter(d => {
+                        const nx = fud.x + d.x * 0.5;
+                        const ny = fud.y + d.y * 0.5;
+                        return this.canMove(nx, ny) && !(d.x === -fud.dx && d.y === -fud.dy);
+                    });
+                    if (validDirs.length > 0) {
+                        const dir = validDirs[Math.floor(Math.random() * validDirs.length)];
+                        fud.dx = dir.x;
+                        fud.dy = dir.y;
+                    }
+                }
+                
+                const nextX = fud.x + fud.dx * speed;
+                const nextY = fud.y + fud.dy * speed;
+                if (this.canMove(nextX, nextY)) {
+                    fud.x = nextX;
+                    fud.y = nextY;
+                } else {
+                    fud.dx *= -1;
+                    fud.dy *= -1;
+                }
+                
+                if (fud.x < 0) fud.x = this.mapWidth - 1;
+                if (fud.x >= this.mapWidth) fud.x = 0;
+            }
+            
+            canMove(x, y) {
+                const tileX = Math.floor(x);
+                const tileY = Math.floor(y);
+                if (tileX < 0 || tileX >= this.mapWidth || tileY < 0 || tileY >= this.mapHeight) {
+                    return false;
+                }
+                return this.map[tileY][tileX] !== 0;
+            }
+            
+            checkCollisions() {
+                this.entities.forEach(entity => {
+                    if (entity.type !== 'fud') return;
+                    
+                    const dx = entity.x - this.player.x;
+                    const dy = entity.y - this.player.y;
+                    const dist = Math.sqrt(dx*dx + dy*dy);
+                    
+                    if (dist < 0.5) {
+                        if (entity.frightened) {
+                            entity.x = 9;
+                            entity.y = 9;
+                            entity.frightened = false;
+                            this.state.score += 500;
+                            this.updateUI();
+                        } else {
+                            this.state.lives--;
+                            this.updateUI();
+                            if (this.state.lives <= 0) {
+                                this.gameOver();
+                            } else {
+                                this.player.x = 9;
+                                this.player.y = 16;
+                                this.player.dx = 1;
+                                this.player.dy = 0;
+                            }
+                        }
+                    }
+                });
+            }
+            
+            victory() {
+                this.state.status = 'victory';
+                this.running = false;
+                document.getElementById('victoryScore').textContent = this.state.score;
+                document.getElementById('victoryOverlay').classList.remove('hidden');
+            }
+            
+            gameOver() {
+                this.state.status = 'gameover';
+                this.running = false;
+                document.getElementById('finalScore').textContent = this.state.score;
+                document.getElementById('gameOverOverlay').classList.remove('hidden');
+            }
+            
+            render() {
+                const ctx = this.ctx;
+                const ts = this.tileSize;
+                
+                // Background with Solana gradient
+                const gradient = ctx.createLinearGradient(0, 0, this.canvas.width, this.canvas.height);
+                gradient.addColorStop(0, '#000814');
+                gradient.addColorStop(1, '#001D3D');
+                ctx.fillStyle = gradient;
+                ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+                
+                // Draw map
+                for (let y = 0; y < this.mapHeight; y++) {
+                    for (let x = 0; x < this.mapWidth; x++) {
+                        const tile = this.map[y][x];
+                        
+                        if (tile === 0) {
+                            // Walls - Solana purple
+                            const wallGrad = ctx.createLinearGradient(x*ts, y*ts, x*ts+ts, y*ts+ts);
+                            wallGrad.addColorStop(0, '#9945FF');
+                            wallGrad.addColorStop(1, '#14F195');
+                            ctx.fillStyle = wallGrad;
+                            ctx.fillRect(x * ts, y * ts, ts, ts);
+                            ctx.strokeStyle = '#14F195';
+                            ctx.lineWidth = 2;
+                            ctx.strokeRect(x * ts, y * ts, ts, ts);
+                        } else if (tile === 1) {
+                            // $QUEEF coins
+                            ctx.fillStyle = '#FFD700';
+                            ctx.beginPath();
+                            ctx.arc(x * ts + ts/2, y * ts + ts/2, 4, 0, Math.PI * 2);
+                            ctx.fill();
+                            ctx.strokeStyle = '#FFA500';
+                            ctx.lineWidth = 2;
+                            ctx.stroke();
+                        } else if (tile === 3) {
+                            // Power coins
+                            ctx.save();
+                            ctx.translate(x * ts + ts/2, y * ts + ts/2);
+                            ctx.rotate(Date.now() / 500);
+                            ctx.fillStyle = '#14F195';
+                            ctx.fillRect(-7, -7, 14, 14);
+                            ctx.restore();
+                        }
+                    }
+                }
+                
+                // Draw player with emoji
+                ctx.save();
+                ctx.font = `${ts-4}px Arial`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(this.player.emoji, this.player.x * ts + ts/2, this.player.y * ts + ts/2);
+                ctx.restore();
+                
+                // Draw FUD spreaders
+                this.entities.forEach(entity => {
+                    if (entity.type === 'fud') {
+                        ctx.save();
+                        if (entity.frightened) {
+                            ctx.filter = 'blur(2px)';
+                            ctx.globalAlpha = 0.5;
+                        }
+                        ctx.font = `${ts-4}px Arial`;
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'middle';
+                        ctx.fillText(entity.emoji, entity.x * ts + ts/2, entity.y * ts + ts/2);
+                        ctx.restore();
+                    }
+                });
+            }
+            
+            updateUI() {
+                document.getElementById('score').textContent = this.state.score;
+                document.getElementById('lives').textContent = '❤️ '.repeat(this.state.lives);
+                document.getElementById('level').textContent = this.state.level;
+            }
+        }
+        
+        // Initialize
+        const canvas = document.getElementById('gameCanvas');
+        const game = new SolqueefGame(canvas);
+        game.render();
+    </script>
+</body>
+</html>

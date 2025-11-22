@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>$SOLQUEEF - Ingredients Catalog</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Comic Sans MS', 'Arial', sans-serif;
+            background: linear-gradient(135deg, #14F195 0%, #9945FF 50%, #14F195 100%);
+            background-size: 400% 400%;
+            animation: solanaGradient 15s ease infinite;
+            color: #fff;
+            display: flex;
+            gap: 1rem;
+            padding: 1rem;
+            min-height: 100vh;
+        }
+        
+        @keyframes solanaGradient {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        
+        /* LEFT: Ingredients Catalog */
+        .catalog-sidebar {
+            width: 350px;
+            background: rgba(0, 0, 0, 0.95);
+            border-radius: 20px;
+            padding: 1.5rem;
+            border: 3px solid #FFD700;
+            box-shadow: 0 0 30px rgba(255, 215, 0, 0.5);
+            max-height: 95vh;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .catalog-header {
+            text-align: center;
+            margin-bottom: 1rem;
+        }
+        
+        .catalog-header h2 {
+            font-size: 1.5rem;
+            color: #FFD700;
+            margin-bottom: 0.5rem;
+        }
+        
+        .search-box {
+            width: 100%;
+            padding: 0.8rem;
+            background: rgba(153, 69, 255, 0.2);
+            border: 2px solid #9945FF;
+            border-radius: 10px;
+            color: white;
+            font-family: inherit;
+            font-size: 1rem;
+            margin-bottom: 1rem;
+        }
+        
+        .search-box::placeholder {
+            color: rgba(255, 255, 255, 0.5);
+        }
+        
+        .tabs {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+            border-bottom: 2px solid #9945FF;
+            padding-bottom: 0.5rem;
+        }
+        
+        .tab {
+            padding: 0.5rem 1rem;
+            background: rgba(153, 69, 255, 0.2);
+            border: 2px solid #9945FF;
+            border-radius: 10px 10px 0 0;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.3s;
+        }
+        
+        .tab:hover {
+            background: rgba(153, 69, 255, 0.4);
+        }
+        
+        .tab.active {
+            background: linear-gradient(135deg, #9945FF, #14F195);
+            border-color: #14F195;
+        }
+        
+        .ingredients-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+        
+        .ingredient-item {
+            background: rgba(153, 69, 255, 0.3);
+            border: 2px solid #9945FF;
+            border-radius: 10px;
+            padding: 0.5rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            position: relative;
+        }
+        
+        .ingredient-item:hover {
+            transform: scale(1.05);
+            border-color: #FFD700;
+            box-shadow: 0 0 20px rgba(255, 215, 0, 0.5);
+        }
+        
+        .ingredient-item img {
+            width: 100%;
+            height: 64px;
+            object-fit: contain;
+            image-rendering: pixelated;
+            margin-bottom: 0.3rem;
+        }
+        
+        .ingredient-name {
+            font-size: 0.7rem;
+            color: #FFD700;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        .hashtag {
+            font-size: 0.6rem;
+            color: #14F195;
+            margin-top: 0.2rem;
+        }
+        
+        /* AI Generator Panel */
+        .ai-generator {
+            background: rgba(255, 215, 0, 0.1);
+            border: 2px solid #FFD700;
+            border-radius: 10px;
+            padding: 1rem;
+            margin-top: auto;
+        }
+        
+        .ai-generator h3 {
+            font-size: 1rem;
+            margin-bottom: 0.5rem;
+            color: #FFD700;
+        }
+        
+        .prompt-input {
+            width: 100%;
+            padding: 0.8rem;
+            background: rgba(0, 0, 0, 0.5);
+            border: 2px solid #9945FF;
+            border-radius: 8px;
+            color: white;
+            font-family: inherit;
+            margin-bottom: 0.5rem;
+            resize: vertical;
+            min-height: 60px;
+        }
+        
+        .style-selector {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            margin-bottom: 0.5rem;
+        }
+        
+        .style-tag {
+            padding: 0.3rem 0.6rem;
+            background: rgba(153, 69, 255, 0.3);
+            border: 1px solid #9945FF;
+            border-radius: 15px;
+            font-size: 0.7rem;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .style-tag:hover, .style-tag.active {
+            background: #9945FF;
+            border-color: #14F195;
+        }
+        
+        .generate-btn {
+            width: 100%;
+            padding: 0.8rem;
+            background: linear-gradient(135deg, #FFD700, #FFA500);
+            border: 2px solid #FFD700;
+            color: #000;
+            border-radius: 10px;
+            font-weight: 900;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .generate-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 30px rgba(255, 215, 0, 0.6);
+        }
+        
+        .generate-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        /* CENTER: Asset Manager */
+        .asset-manager {
+            width: 300px;
+            background: rgba(0, 0, 0, 0.9);
+            border-radius: 20px;
+            padding: 1.5rem;
+            border: 3px solid #14F195;
+            box-shadow: 0 0 30px rgba(20, 241, 149, 0.5);
+            max-height: 95vh;
+            overflow-y: auto;
+        }
+        
+        .asset-manager h2 {
+            color: #14F195;
+            text-align: center;
+            margin-bottom: 1rem;
+        }
+        
+        .asset-slots {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.5rem;
+        }
+        
+        .asset-slot {
+            background: rgba(20, 241, 149, 0.1);
+            border: 2px solid #14F195;
+            border-radius: 10px;
+            padding: 0.5rem;
+            text-align: center;
+            min-height: 100px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            position: relative;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .asset-slot:hover {
+            border-color: #FFD700;
+            transform: scale(1.05);
+        }
+        
+        .asset-slot img {
+            width: 100%;
+            height: 64px;
+            object-fit: contain;
+            image-rendering: pixelated;
+        }
+        
+        .asset-slot .label {
+            font-size: 0.7rem;
+            color: #14F195;
+            margin-top: 0.3rem;
+        }
+        
+        .asset-slot .empty {
+            color: #666;
+            font-size: 2rem;
+        }
+        
+        /* RIGHT: Game Area */
+        .game-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        .game-header {
+            text-align: center;
+            margin-bottom: 1rem;
+        }
+        
+        .logo {
+            font-size: 3rem;
+            font-weight: 900;
+            text-shadow: 0 0 20px #14F195, 4px 4px 0px rgba(0,0,0,0.3);
+        }
+        
+        .game-wrapper {
+            background: rgba(0, 0, 0, 0.9);
+            padding: 2rem;
+            border-radius: 20px;
+            box-shadow: 0 10px 50px rgba(0, 0, 0, 0.5);
+            border: 3px solid #9945FF;
+        }
+        
+        canvas {
+            display: block;
+            border-radius: 10px;
+            image-rendering: pixelated;
+            border: 3px solid #14F195;
+        }
+        
+        .controls {
+            margin-top: 1rem;
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+        }
+        
+        button {
+            padding: 0.8rem 1.5rem;
+            background: linear-gradient(135deg, #9945FF, #14F195);
+            border: 2px solid #14F195;
+            color: white;
+            border-radius: 15px;
+            font-family: inherit;
+            font-weight: 900;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 30px rgba(20, 241, 149, 0.6);
+        }
+        
+        .loading {
+            color: #FFD700;
+            font-size: 0.9rem;
+            margin-top: 0.5rem;
+            animation: pulse 1s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+    </style>
+</head>
+<body>
+    <!-- LEFT: INGREDIENTS CATALOG -->
+    <div class="catalog-sidebar">
+        <div class="catalog-header">
+            <h2>🧪 Ingredients Catalog</h2>
+            <input type="text" class="search-box" placeholder="Search #nanobabana..." id="searchBox">
+        </div>
+        
+        <div class="tabs">
+            <div class="tab active" onclick="switchTab('official')">🏆 Official</div>
+            <div class="tab" onclick="switchTab('community')">👥 Community</div>
+            <div class="tab" onclick="switchTab('hashtags')">🏷️ Hashtags</div>
+        </div>
+        
+        <div id="ingredientsContainer" class="ingredients-grid">
+            <!-- Populated by JS -->
+        </div>
+        
+        <div class="ai-generator">
+            <h3>🤖 AI Sprite Generator</h3>
+            <textarea class="prompt-input" id="aiPrompt" placeholder="Describe your 8-bit character... (e.g., 'pixel art queen character, 32x32, retro game style')"></textarea>
+            
+            <div class="style-selector">
+                <div class="style-tag active" data-style="pixel-art">Pixel Art</div>
+                <div class="style-tag" data-style="8-bit">8-bit</div>
+                <div class="style-tag" data-style="16-bit">16-bit</div>
+                <div class="style-tag" data-style="retro">Retro</div>
+            </div>
+            
+            <button class="generate-btn" onclick="generateSprite()" id="generateBtn">
+                ⚡ GENERATE SPRITE ⚡
+            </button>
+            <div id="generateStatus"></div>
+        </div>
+    </div>
+
+    <!-- CENTER: ASSET MANAGER -->
+    <div class="asset-manager">
+        <h2>🎨 Your Assets</h2>
+        <div class="asset-slots" id="assetSlots">
+            <!-- Populated by JS -->
+        </div>
+        <button onclick="saveAssets()" style="width: 100%; margin-top: 1rem;">💾 SAVE</button>
+        <button onclick="loadGame()" style="width: 100%; margin-top: 0.5rem;">🎮 LOAD GAME</button>
+    </div>
+
+    <!-- RIGHT: GAME AREA -->
+    <div class="game-area">
+        <div class="game-header">
+            <div class="logo">⚡ $SOLQUEEF 💨</div>
+            <div style="font-size: 1.2rem;">Ingredients-Powered Game</div>
+        </div>
+        
+        <div class="game-wrapper">
+            <canvas id="gameCanvas" width="608" height="704"></canvas>
+            
+            <div class="controls">
+                <button onclick="startGame()">🚀 START</button>
+                <button onclick="pauseGame()">⏸️ PAUSE</button>
+                <button onclick="restartGame()">🔄 RESTART</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ============================================
+        // INGREDIENTS CATALOG DATA
+        // ============================================
+        
+        const ingredientsCatalog = {
+            official: [
+                { id: 'queen', name: 'Queen', emoji: '👸', hashtag: '#solqueef', category: 'player' },
+                { id: 'king', name: 'King', emoji: '👑', hashtag: '#boss', category: 'ghost' },
+                { id: 'gamer', name: 'Gamer', emoji: '🎮', hashtag: '#player2', category: 'ghost' },
+                { id: 'soldier', name: 'Soldier', emoji: '💚', hashtag: '#squad', category: 'ghost' },
+                { id: 'coin', name: 'Coin', emoji: '💰', hashtag: '#queef', category: 'coin' },
+                { id: 'diamond', name: 'Diamond', emoji: '💎', hashtag: '#hodl', category: 'powerCoin' },
+            ],
+            community: [
+                { id: 'nanobabana', name: 'Nano Babana', emoji: '🍌', hashtag: '#nanobabana', category: 'player' },
+                { id: 'pepe', name: 'Pepe', emoji: '🐸', hashtag: '#meme', category: 'ghost' },
+                { id: 'doge', name: 'Doge', emoji: '🐕', hashtag: '#doge', category: 'ghost' },
+                { id: 'rocket', name: 'Rocket', emoji: '🚀', hashtag: '#moon', category: 'coin' },
+            ],
+            hashtags: [
+                { id: 'moon', name: 'To The Moon', emoji: '🌙', hashtag: '#moon', category: 'player' },
+                { id: 'diamond', name: 'Diamond Hands', emoji: '💎', hashtag: '#diamondhands', category: 'ghost' },
+                { id: 'fire', name: 'Fire', emoji: '🔥', hashtag: '#fire', category: 'powerCoin' },
+                { id: 'whale', name: 'Whale', emoji: '🐋', hashtag: '#whale', category: 'ghost' },
+            ]
+        };
+        
+        let currentTab = 'official';
+        let selectedStyle = 'pixel-art';
+        let assets = {
+            player: null,
+            ghost1: null,
+            ghost2: null,
+            ghost3: null,
+            ghost4: null,
+            coin: null,
+            powerCoin: null,
+            wall: null
+        };
+        
+        // ============================================
+        // CATALOG UI
+        // ============================================
+        
+        function switchTab(tab) {
+            currentTab = tab;
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            event.target.classList.add('active');
+            renderIngredients();
+        }
+        
+        function renderIngredients() {
+            const container = document.getElementById('ingredientsContainer');
+            const search = document.getElementById('searchBox').value.toLowerCase();
+            const items = ingredientsCatalog[currentTab].filter(item => 
+                item.name.toLowerCase().includes(search) || 
+                item.hashtag.toLowerCase().includes(search)
+            );
+            
+            container.innerHTML = items.map(item => `
+                <div class="ingredient-item" onclick="useIngredient('${item.id}', '${item.category}', '${item.emoji}')">
+                    <div style="font-size: 2rem;">${item.emoji}</div>
+                    <div class="ingredient-name">${item.name}</div>
+                    <div class="hashtag">${item.hashtag}</div>
+                </div>
+            `).join('');
+        }
+        
+        function useIngredient(id, category, emoji) {
+            // Find next available slot or specific category slot
+            let targetSlot = null;
+            
+            if (category === 'player' && !assets.player) {
+                targetSlot = 'player';
+            } else if (category === 'ghost') {
+                for (let i = 1; i <= 4; i++) {
+                    if (!assets[`ghost${i}`]) {
+                        targetSlot = `ghost${i}`;
+                        break;
+                    }
+                }
+            } else if (category === 'coin' && !assets.coin) {
+                targetSlot = 'coin';
+            } else if (category === 'powerCoin' && !assets.powerCoin) {
+                targetSlot = 'powerCoin';
+            }
+            
+            if (targetSlot) {
+                // Create emoji as image
+                const canvas = document.createElement('canvas');
+                canvas.width = 32;
+                canvas.height = 32;
+                const ctx = canvas.getContext('2d');
+                ctx.font = '28px Arial';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(emoji, 16, 16);
+                
+                const img = new Image();
+                img.onload = () => {
+                    assets[targetSlot] = img;
+                    saveToStorage();
+                    renderAssetSlots();
+                };
+                img.src = canvas.toDataURL();
+            } else {
+                alert('No available slots for this type!');
+            }
+        }
+        
+        // ============================================
+        // AI SPRITE GENERATION
+        // ============================================
+        
+        // Style tag selection
+        document.addEventListener('DOMContentLoaded', () => {
+            document.querySelectorAll('.style-tag').forEach(tag => {
+                tag.addEventListener('click', () => {
+                    document.querySelectorAll('.style-tag').forEach(t => t.classList.remove('active'));
+                    tag.classList.add('active');
+                    selectedStyle = tag.dataset.style;
+                });
+            });
+        });
+        
+        async function generateSprite() {
+            const prompt = document.getElementById('aiPrompt').value.trim();
+            if (!prompt) {
+                alert('Please enter a prompt!');
+                return;
+            }
+            
+            const btn = document.getElementById('generateBtn');
+            const status = document.getElementById('generateStatus');
+            
+            btn.disabled = true;
+            status.innerHTML = '<div class="loading">⚡ Generating sprite...</div>';
+            
+            try {
+                // Call your existing Replicate API
+                const fullPrompt = `${selectedStyle} style, ${prompt}, 32x32 pixels, pixel art, retro game sprite, transparent background`;
+                
+                const response = await fetch('/api/image/generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        prompt: fullPrompt,
+                        style: selectedStyle,
+                        width: 32,
+                        height: 32
+                    })
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    const img = new Image();
+                    img.onload = () => {
+                        // Auto-assign to first empty slot
+                        const emptySlot = Object.keys(assets).find(key => !assets[key]);
+                        if (emptySlot) {
+                            assets[emptySlot] = img;
+                            saveToStorage();
+                            renderAssetSlots();
+                        }
+                        status.innerHTML = '<div style="color: #14F195;">✓ Generated!</div>';
+                    };
+                    img.src = data.imageUrl;
+                } else {
+                    throw new Error('Generation failed');
+                }
+            } catch (error) {
+                console.error('AI Generation error:', error);
+                status.innerHTML = '<div style="color: #FF006E;">⚠️ Demo mode - Server not connected</div>';
+                
+                // Fallback: Create placeholder
+                const canvas = document.createElement('canvas');
+                canvas.width = 32;
+                canvas.height = 32;
+                const ctx = canvas.getContext('2d');
+                ctx.fillStyle = '#9945FF';
+                ctx.fillRect(0, 0, 32, 32);
+                ctx.fillStyle = '#14F195';
+                ctx.font = '20px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('AI', 16, 20);
+                
+                const img = new Image();
+                img.onload = () => {
+                    const emptySlot = Object.keys(assets).find(key => !assets[key]);
+                    if (emptySlot) {
+                        assets[emptySlot] = img;
+                        renderAssetSlots();
+                    }
+                };
+                img.src = canvas.toDataURL();
+            } finally {
+                btn.disabled = false;
+                setTimeout(() => { status.innerHTML = ''; }, 3000);
+            }
+        }
+        
+        // ============================================
+        // ASSET MANAGER
+        // ============================================
+        
+        function renderAssetSlots() {
+            const container = document.getElementById('assetSlots');
+            container.innerHTML = Object.keys(assets).map(key => {
+                const img = assets[key];
+                return `
+                    <div class="asset-slot" onclick="selectAssetSlot('${key}')">
+                        ${img ? `<img src="${img.src}">` : '<div class="empty">+</div>'}
+                        <div class="label">${key}</div>
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        function selectAssetSlot(key) {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'image/*';
+            input.onchange = (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = (event) => {
+                        const img = new Image();
+                        img.onload = () => {
+                            assets[key] = img;
+                            saveToStorage();
+                            renderAssetSlots();
+                        };
+                        img.src = event.target.result;
+                    };
+                    reader.readAsDataURL(file);
+                }
+            };
+            input.click();
+        }
+        
+        function saveToStorage() {
+            const data = {};
+            Object.entries(assets).forEach(([key, img]) => {
+                if (img) data[key] = img.src;
+            });
+            localStorage.setItem('solqueef_ingredients', JSON.stringify(data));
+        }
+        
+        function loadFromStorage() {
+            try {
+                const saved = localStorage.getItem('solqueef_ingredients');
+                if (saved) {
+                    const data = JSON.parse(saved);
+                    Object.entries(data).forEach(([key, src]) => {
+                        const img = new Image();
+                        img.onload = () => {
+                            assets[key] = img;
+                            renderAssetSlots();
+                        };
+                        img.src = src;
+                    });
+                }
+            } catch (e) {
+                console.warn('Failed to load assets:', e);
+            }
+        }
+        
+        function saveAssets() {
+            saveToStorage();
+            alert('✓ Assets saved!');
+        }
+        
+        function loadGame() {
+            window.open('thunder-engine-sprites.html', '_blank');
+        }
+        
+        // ============================================
+        // GAME STUB (Link to actual engine)
+        // ============================================
+        
+        function startGame() {
+            alert('Game engine integration coming! For now, click "LOAD GAME" to play with your sprites.');
+        }
+        
+        function pauseGame() {
+            alert('Pause feature in full engine');
+        }
+        
+        function restartGame() {
+            alert('Restart feature in full engine');
+        }
+        
+        // ============================================
+        // INITIALIZE
+        // ============================================
+        
+        loadFromStorage();
+        renderIngredients();
+        renderAssetSlots();
+        
+        // Search filter
+        document.getElementById('searchBox').addEventListener('input', renderIngredients);
+    </script>
+</body>
+</html>

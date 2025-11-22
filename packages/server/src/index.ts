@@ -5,6 +5,8 @@ import { audioRouter } from './routes/audio.js';
 import { imageRouter } from './routes/image.js';
 import { videoRouter } from './routes/video.js';
 import { projectRouter } from './routes/project.js';
+import { spriteVideoRouter } from './routes/spriteVideo.js';
+import { visualizerRouter } from './routes/visualizer.js';
 import { setupStorage } from './utils/storage.js';
 
 dotenv.config();
@@ -27,11 +29,21 @@ app.use('/outputs/images', express.static('outputs/images', {
   }
 }));
 
+// Serve output videos with CORS headers
+app.use('/outputs/videos', express.static('outputs/videos', {
+  setHeaders: (res) => {
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Cross-Origin-Resource-Policy', 'cross-origin');
+  }
+}));
+
 // Routes
 app.use('/api/audio', audioRouter);
 app.use('/api/image', imageRouter);
 app.use('/api/video', videoRouter);
 app.use('/api/project', projectRouter);
+app.use('/api/sprite-video', spriteVideoRouter);
+app.use('/api/visualizer', visualizerRouter);
 
 // Health check
 app.get('/api/health', (_req, res) => {

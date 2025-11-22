@@ -1,0 +1,986 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audio1.TV - AI Music Video Generator</title>
+    
+    <!-- Modern Design System -->
+    <link rel="stylesheet" href="audio1tv-modern.css">
+    
+    <!-- External Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
+    
+    <!-- tRPC Client (via CDN) -->
+    <script type="module">
+        // We'll use fetch API directly for now (simpler than importing tRPC client)
+        window.apiClient = {
+            async call(endpoint, data) {
+                const response = await fetch(`http://localhost:3000/api/${endpoint}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data),
+                });
+                return response.json();
+            }
+        };
+    </script>
+    
+    <style>
+        /* Component-specific overrides */
+        .upload-zone {
+            min-height: 400px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            border: 2px dashed var(--border-medium);
+            border-radius: var(--radius-xl);
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            transition: all var(--transition-base);
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .upload-zone::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(circle at 50% 50%,
+                oklch(47.6% 0.152 294 / 0.1),
+                transparent 70%
+            );
+            opacity: 0;
+            transition: opacity var(--transition-base);
+        }
+        
+        .upload-zone.dragover {
+            border-color: var(--primary-light);
+            background: oklch(20% 0.05 294 / 0.8);
+        }
+        
+        .upload-zone.dragover::before {
+            opacity: 1;
+        }
+        
+        .upload-icon {
+            font-size: 4rem;
+            margin-bottom: var(--space-lg);
+            opacity: 0.5;
+        }
+        
+        .canvas-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle at 50% 50%,
+                oklch(15% 0.04 294),
+                var(--bg-primary)
+            );
+        }
+        
+        canvas {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+        }
+        
+        .waveform-container {
+            width: 100%;
+            height: 120px;
+            background: var(--bg-tertiary);
+            border-radius: var(--radius-md);
+            overflow: hidden;
+            position: relative;
+        }
+        
+        .beat-markers {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+        }
+        
+        .beat-marker {
+            position: absolute;
+            width: 2px;
+            height: 100%;
+            background: var(--accent);
+            opacity: 0.4;
+        }
+        
+        .generation-progress {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 9999;
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius-xl);
+            padding: 2rem;
+            min-width: 400px;
+            backdrop-filter: blur(30px);
+            box-shadow: var(--shadow-xl);
+            display: none;
+        }
+        
+        .generation-progress.active {
+            display: block;
+        }
+        
+        .progress-ring {
+            width: 120px;
+            height: 120px;
+            margin: 0 auto 1.5rem;
+            position: relative;
+        }
+        
+        .progress-ring svg {
+            transform: rotate(-90deg);
+        }
+        
+        .progress-ring circle {
+            fill: none;
+            stroke: var(--border-subtle);
+            stroke-width: 8;
+        }
+        
+        .progress-ring circle.progress {
+            stroke: var(--accent);
+            stroke-linecap: round;
+            transition: stroke-dashoffset 0.3s;
+        }
+        
+        .segment-list {
+            max-height: 200px;
+            overflow-y: auto;
+            margin-top: 1rem;
+        }
+        
+        .segment-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem;
+            margin-bottom: 0.5rem;
+            background: var(--bg-tertiary);
+            border-radius: var(--radius-sm);
+            font-size: 0.85rem;
+        }
+        
+        .segment-status {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+        
+        .segment-status.pending { background: var(--text-tertiary); }
+        .segment-status.processing { background: var(--warning); animation: pulse 1s infinite; }
+        .segment-status.completed { background: var(--success); }
+        .segment-status.failed { background: var(--danger); }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- ═══════════════════════════════════════════════════════════ -->
+        <!-- HEADER -->
+        <!-- ═══════════════════════════════════════════════════════════ -->
+        <header class="app-header">
+            <div class="logo-section">
+                <div class="logo">Audio1.TV</div>
+                <div class="version-badge">v2.0 INTEGRATED</div>
+            </div>
+            
+            <div class="nav-section">
+                <div class="status-indicator">
+                    <div class="status-dot active" id="aiStatusDot"></div>
+                    <span id="aiStatusText">AI Ready</span>
+                </div>
+                
+                <button class="btn btn-ghost" onclick="showSettings()">
+                    <span>⚙️</span> Settings
+                </button>
+                
+                <button class="btn btn-accent" onclick="triggerUpload()" id="uploadBtn">
+                    <span>📁</span> Upload Audio
+                </button>
+            </div>
+        </header>
+        
+        <!-- ═══════════════════════════════════════════════════════════ -->
+        <!-- MAIN CONTENT -->
+        <!-- ═══════════════════════════════════════════════════════════ -->
+        <main id="mainContent">
+            <!-- Upload View (Initial State) -->
+            <div id="uploadView" class="upload-zone" style="margin: 2rem; height: calc(100vh - 200px);">
+                <div class="upload-icon">🎵</div>
+                <h2 class="text-gradient" style="font-size: 2rem; margin-bottom: 1rem;">
+                    Drop Your Audio Here
+                </h2>
+                <p style="color: var(--text-secondary); margin-bottom: 2rem;">
+                    AI will analyze and create a professional music video
+                </p>
+                <button class="btn btn-primary" onclick="triggerUpload()">
+                    Choose Audio File
+                </button>
+                <input type="file" id="audioInput" accept="audio/*" style="display: none;" onchange="handleAudioUpload(event)">
+            </div>
+            
+            <!-- Canvas View (After Upload) -->
+            <div id="canvasView" class="canvas-container" style="display: none;">
+                <canvas id="bgCanvas"></canvas>
+                <canvas id="canvas3d"></canvas>
+                <canvas id="visualCanvas"></canvas>
+                
+                <!-- AI Analysis Panel -->
+                <div class="panel panel-analysis" id="analysisPanel" style="display: none;">
+                    <div class="card-header">
+                        <div class="card-title">🤖 AI Analysis</div>
+                        <div class="card-subtitle">Understanding your music...</div>
+                    </div>
+                    
+                    <div id="aiThoughts" style="font-size: 0.85rem; color: var(--text-secondary);">
+                        <!-- AI thoughts populate here -->
+                    </div>
+                    
+                    <div class="metrics-grid" style="margin-top: 1.5rem;">
+                        <div class="metric-item">
+                            <div class="metric-value" id="bpmValue">--</div>
+                            <div class="metric-label">BPM</div>
+                        </div>
+                        <div class="metric-item">
+                            <div class="metric-value" id="beatCount">--</div>
+                            <div class="metric-label">Beats</div>
+                        </div>
+                        <div class="metric-item">
+                            <div class="metric-value" id="energyValue">--</div>
+                            <div class="metric-label">Energy</div>
+                        </div>
+                    </div>
+                    
+                    <button class="btn btn-accent" style="width: 100%; margin-top: 1.5rem;" onclick="showAnalysisModal()">
+                        <span>✨</span> View Full Analysis
+                    </button>
+                </div>
+                
+                <!-- Timeline Panel -->
+                <div class="panel panel-timeline" id="timelinePanel" style="display: none;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                        <div class="card-title">Timeline</div>
+                        <div style="display: flex; gap: 0.5rem;">
+                            <button class="btn btn-ghost btn-icon" onclick="playPause()">▶️</button>
+                            <button class="btn btn-ghost btn-icon" onclick="resetPlayback()">⏹️</button>
+                        </div>
+                    </div>
+                    
+                    <div class="waveform-container" id="waveformContainer">
+                        <div class="beat-markers" id="beatMarkers"></div>
+                    </div>
+                    
+                    <div style="display: flex; gap: 1rem; margin-top: 1rem;">
+                        <div style="flex: 1;">
+                            <div style="font-size: 0.75rem; color: var(--text-tertiary); margin-bottom: 0.25rem;">
+                                CURRENT TIME
+                            </div>
+                            <div style="font-size: 1.2rem; font-weight: 700; color: var(--text-primary);" id="currentTime">
+                                0:00
+                            </div>
+                        </div>
+                        <div style="flex: 1;">
+                            <div style="font-size: 0.75rem; color: var(--text-tertiary); margin-bottom: 0.25rem;">
+                                DURATION
+                            </div>
+                            <div style="font-size: 1.2rem; font-weight: 700; color: var(--text-primary);" id="duration">
+                                0:00
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+    
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <!-- ANALYSIS MODAL -->
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <div id="analysisModal" class="analysis-modal">
+        <div class="analysis-content">
+            <div class="analysis-header">
+                <h2>🎵 Audio Analysis Complete</h2>
+                <p>Here's what I understand about your music. Ready to generate?</p>
+            </div>
+
+            <div class="analysis-grid">
+                <div class="analysis-card">
+                    <h3><span class="icon">📊</span> Audio Metrics</h3>
+                    <div class="stat-row">
+                        <span class="stat-label">Duration</span>
+                        <span class="stat-value" id="stat-duration">--</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">BPM</span>
+                        <span class="stat-value" id="stat-bpm">--</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Total Beats</span>
+                        <span class="stat-value" id="stat-beats">--</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Avg Energy</span>
+                        <span class="stat-value" id="stat-energy">--</span>
+                    </div>
+                    <div class="energy-bar">
+                        <div class="energy-fill" id="energy-fill" style="width: 0%"></div>
+                    </div>
+                </div>
+
+                <div class="analysis-card">
+                    <h3><span class="icon">🎼</span> Song Structure</h3>
+                    <div class="stat-row">
+                        <span class="stat-label">Sections Detected</span>
+                        <span class="stat-value" id="stat-sections">--</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Complexity</span>
+                        <span class="stat-value" id="stat-complexity">--</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Mood</span>
+                        <div id="mood-badges"></div>
+                    </div>
+                </div>
+
+                <div class="analysis-card">
+                    <h3><span class="icon">🎛️</span> Audio Patterns</h3>
+                    <div class="stat-row">
+                        <span class="stat-label">Musical Key</span>
+                        <span class="stat-value" id="stat-key">--</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Brightness</span>
+                        <span class="stat-value" id="stat-brightness">--</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Timbre</span>
+                        <span class="stat-value" id="stat-timbre">--</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="analysis-card">
+                <h3><span class="icon">⏱️</span> Structure Timeline</h3>
+                <div class="structure-timeline" id="structure-timeline"></div>
+            </div>
+
+            <div class="narrative-preview">
+                <h3>🎬 Recommended Narrative Structure</h3>
+                <div class="narrative-type" id="narrative-type">Visual Ensemble</div>
+                <p id="narrative-description" style="color: rgba(255,255,255,0.8); margin-bottom: 1rem;">
+                    Multiple visual themes will share equal presence throughout the video.
+                </p>
+                
+                <h4 style="color: var(--accent); margin-top: 1.5rem; margin-bottom: 0.8rem;">Visual Characters:</h4>
+                <div class="visual-characters" id="visual-characters"></div>
+            </div>
+
+            <div class="action-buttons">
+                <button class="btn btn-ghost" onclick="closeAnalysisModal()">
+                    ← Back to Edit
+                </button>
+                <button class="btn btn-accent" onclick="generateFromAnalysis()">
+                    🎬 Generate Video →
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <!-- GENERATION PROGRESS MODAL -->
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <div id="generationProgress" class="generation-progress">
+        <h3 style="text-align: center; margin-bottom: 1rem;">Generating Your Music Video</h3>
+        
+        <div class="progress-ring">
+            <svg width="120" height="120">
+                <circle cx="60" cy="60" r="54" />
+                <circle class="progress" cx="60" cy="60" r="54" 
+                        stroke-dasharray="339.292" 
+                        stroke-dashoffset="339.292"
+                        id="progressCircle" />
+            </svg>
+            <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center;">
+                <div style="font-size: 1.5rem; font-weight: 700;" id="progressPercent">0%</div>
+                <div style="font-size: 0.7rem; color: var(--text-tertiary);" id="progressStatus">Preparing...</div>
+            </div>
+        </div>
+        
+        <div id="segmentList" class="segment-list">
+            <!-- Segments populate here -->
+        </div>
+        
+        <div style="text-align: center; margin-top: 1.5rem; font-size: 0.85rem; color: var(--text-secondary);">
+            <div id="estimatedTime">Estimated time: ~20 minutes</div>
+        </div>
+    </div>
+    
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <!-- INTEGRATED AI ENGINE -->
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <script type="module">
+        // Import analysis-modal.html styles
+        const modalStyles = document.createElement('link');
+        modalStyles.rel = 'stylesheet';
+        modalStyles.href = 'analysis-modal.html';
+        
+        // ═══════════════════════════════════════════════════════════════
+        // STATE MANAGEMENT
+        // ═══════════════════════════════════════════════════════════════
+        
+        const STATE = {
+            audioFile: null,
+            audioBuffer: null,
+            audioContext: null,
+            projectId: null,
+            
+            // Client-side analysis
+            duration: 0,
+            bpm: 0,
+            beats: [],
+            energyCurve: [],
+            structure: [],
+            
+            // Backend analysis (Python)
+            pythonAnalysis: null,
+            
+            // Generation
+            segments: [],
+            generationProgress: 0,
+            
+            // Playback
+            isPlaying: false,
+            currentTime: 0,
+            startTime: 0
+        };
+        
+        // Make functions globally accessible
+        window.STATE = STATE;
+        
+        // ═══════════════════════════════════════════════════════════════
+        // API CLIENT (Backend Communication)
+        // ═══════════════════════════════════════════════════════════════
+        
+        const API_BASE = 'http://localhost:3000/api';
+        
+        async function apiCall(endpoint, data) {
+            try {
+                const response = await fetch(`${API_BASE}/${endpoint}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(data),
+                    credentials: 'include',
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`API error: ${response.statusText}`);
+                }
+                
+                return await response.json();
+            } catch (error) {
+                console.error(`[API] ${endpoint} failed:`, error);
+                throw error;
+            }
+        }
+        
+        async function uploadAudioFile(file) {
+            const formData = new FormData();
+            formData.append('audio', file);
+            
+            const response = await fetch(`${API_BASE}/upload`, {
+                method: 'POST',
+                body: formData,
+                credentials: 'include',
+            });
+            
+            return await response.json();
+        }
+        
+        // ═══════════════════════════════════════════════════════════════
+        // AUDIO UPLOAD & CLIENT ANALYSIS
+        // ═══════════════════════════════════════════════════════════════
+        
+        window.triggerUpload = function() {
+            document.getElementById('audioInput').click();
+        };
+        
+        window.handleAudioUpload = async function(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            STATE.audioFile = file;
+            updateStatus('processing', 'Uploading audio...');
+            
+            // Switch to canvas view
+            document.getElementById('uploadView').style.display = 'none';
+            document.getElementById('canvasView').style.display = 'block';
+            document.getElementById('analysisPanel').style.display = 'block';
+            document.getElementById('timelinePanel').style.display = 'block';
+            
+            try {
+                // 1. Quick client-side analysis for instant feedback
+                addAIThought('🎵 Starting quick analysis...');
+                await performClientAnalysis(file);
+                
+                // 2. Upload to backend
+                addAIThought('☁️ Uploading to backend...');
+                const uploadResult = await uploadAudioFile(file);
+                STATE.projectId = uploadResult.projectId;
+                
+                // 3. Trigger Python analysis
+                addAIThought('🐍 Running production analysis with Python...');
+                updateStatus('processing', 'Analyzing with AI...');
+                
+                const analysisResult = await apiCall('analyze', {
+                    projectId: STATE.projectId
+                });
+                
+                STATE.pythonAnalysis = analysisResult;
+                
+                // 4. Merge analyses
+                mergeAnalyses(analysisResult);
+                
+                addAIThought('✅ Analysis complete!');
+                updateStatus('active', 'Analysis complete');
+                
+                // Initialize visualizations
+                initializeVisualizations();
+                
+            } catch (error) {
+                console.error('Upload/analysis failed:', error);
+                updateStatus('error', 'Analysis failed');
+                addAIThought('❌ Error: ' + error.message);
+            }
+        };
+        
+        async function performClientAnalysis(file) {
+            // Initialize audio context
+            STATE.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            
+            // Load and decode audio
+            const arrayBuffer = await file.arrayBuffer();
+            STATE.audioBuffer = await STATE.audioContext.decodeAudioData(arrayBuffer);
+            STATE.duration = STATE.audioBuffer.duration;
+            
+            const channelData = STATE.audioBuffer.getChannelData(0);
+            const sampleRate = STATE.audioBuffer.sampleRate;
+            
+            // Quick beat detection
+            STATE.beats = detectBeats(channelData, sampleRate);
+            STATE.bpm = calculateBPM(STATE.beats);
+            STATE.energyCurve = computeEnergyCurve(channelData, sampleRate);
+            STATE.structure = detectStructure(STATE.energyCurve, STATE.beats, STATE.duration);
+            
+            // Display initial results
+            displayAnalysisResults();
+        }
+        
+        function mergeAnalyses(pythonAnalysis) {
+            // Use Python analysis for production features
+            STATE.structure = pythonAnalysis.structure || STATE.structure;
+            STATE.beats = pythonAnalysis.beats || STATE.beats;
+            STATE.bpm = pythonAnalysis.tempo || STATE.bpm;
+            
+            // Update display
+            displayAnalysisResults();
+        }
+        
+        // ═══════════════════════════════════════════════════════════════
+        // ANALYSIS MODAL & VIDEO GENERATION
+        // ═══════════════════════════════════════════════════════════════
+        
+        let currentAnalysisData = null;
+        
+        window.showAnalysisModal = function() {
+            currentAnalysisData = {
+                duration: STATE.duration,
+                bpm: STATE.bpm,
+                beats: STATE.beats,
+                structure: STATE.structure,
+                musicalKey: STATE.pythonAnalysis?.musicalKey,
+                mood: STATE.pythonAnalysis?.mood,
+                spectralFeatures: STATE.pythonAnalysis?.spectralFeatures,
+            };
+            
+            // Populate modal with merged analysis
+            document.getElementById('stat-duration').textContent = formatTime(STATE.duration);
+            document.getElementById('stat-bpm').textContent = STATE.bpm || 'Unknown';
+            document.getElementById('stat-beats').textContent = STATE.beats.length;
+            
+            const avgEnergy = STATE.energyCurve.reduce((a, b) => a + b, 0) / STATE.energyCurve.length;
+            document.getElementById('stat-energy').textContent = `${Math.round(avgEnergy * 100)}%`;
+            document.getElementById('energy-fill').style.width = `${avgEnergy * 100}%`;
+            
+            document.getElementById('stat-sections').textContent = STATE.structure.length;
+            const complexity = STATE.structure.length >= 5 ? 'High' : 
+                               STATE.structure.length >= 3 ? 'Medium' : 'Simple';
+            document.getElementById('stat-complexity').textContent = complexity;
+            
+            // Python-enhanced features
+            if (STATE.pythonAnalysis) {
+                document.getElementById('stat-key').textContent = STATE.pythonAnalysis.musicalKey || 'Unknown';
+                document.getElementById('stat-brightness').textContent = Math.round(STATE.pythonAnalysis.spectralFeatures?.brightness || 0);
+                document.getElementById('stat-timbre').textContent = Math.round(STATE.pythonAnalysis.spectralFeatures?.timbre || 0);
+            }
+            
+            // Mood badges
+            const mood = STATE.pythonAnalysis?.mood || 'balanced';
+            document.getElementById('mood-badges').innerHTML = `<span class="mood-badge">${mood}</span>`;
+            
+            // Structure timeline
+            const timeline = document.getElementById('structure-timeline');
+            timeline.innerHTML = STATE.structure.map(section => {
+                const width = ((section.endTime - section.startTime) / STATE.duration) * 100;
+                return `<div class="structure-segment ${section.type}" style="flex-basis: ${width}%">${section.type.toUpperCase()}</div>`;
+            }).join('');
+            
+            // Narrative recommendation
+            const narrative = recommendNarrative(currentAnalysisData);
+            document.getElementById('narrative-type').textContent = narrative.name;
+            document.getElementById('narrative-description').textContent = narrative.description;
+            
+            const charContainer = document.getElementById('visual-characters');
+            charContainer.innerHTML = narrative.visualCast.map(char => `
+                <div class="character-chip" style="border-color: ${char.color}">
+                    <div class="color-dot" style="background: ${char.color}"></div>
+                    <span>${char.name}</span>
+                    <span class="presence">${char.presence}%</span>
+                </div>
+            `).join('');
+            
+            document.getElementById('analysisModal').classList.add('active');
+        };
+        
+        window.closeAnalysisModal = function() {
+            document.getElementById('analysisModal').classList.remove('active');
+        };
+        
+        window.generateFromAnalysis = async function() {
+            closeAnalysisModal();
+            
+            // Show generation progress modal
+            document.getElementById('generationProgress').classList.add('active');
+            updateGenerationProgress(0, 'Creating video recipe...');
+            
+            try {
+                // 1. Generate video recipe
+                const recipe = await apiCall('generate-recipe', {
+                    projectId: STATE.projectId,
+                    analysis: currentAnalysisData,
+                });
+                
+                updateGenerationProgress(10, 'Recipe created!');
+                
+                // 2. Start video generation
+                const segments = await apiCall('generate-segments', {
+                    projectId: STATE.projectId,
+                    recipe: recipe,
+                });
+                
+                STATE.segments = segments;
+                renderSegmentList(segments);
+                
+                updateGenerationProgress(20, 'Generating video clips...');
+                
+                // 3. Monitor progress
+                monitorVideoGeneration();
+                
+            } catch (error) {
+                console.error('Generation failed:', error);
+                updateStatus('error', 'Generation failed: ' + error.message);
+                document.getElementById('generationProgress').classList.remove('active');
+            }
+        };
+        
+        async function monitorVideoGeneration() {
+            const interval = setInterval(async () => {
+                try {
+                    const progress = await apiCall('generation-progress', {
+                        projectId: STATE.projectId
+                    });
+                    
+                    const completed = progress.segments.filter(s => s.status === 'completed').length;
+                    const total = progress.segments.length;
+                    const percent = Math.round((completed / total) * 80) + 20; // 20-100%
+                    
+                    updateGenerationProgress(percent, `${completed}/${total} clips ready`);
+                    updateSegmentStatus(progress.segments);
+                    
+                    if (progress.status === 'completed') {
+                        clearInterval(interval);
+                        updateGenerationProgress(100, 'Video ready!');
+                        
+                        setTimeout(() => {
+                            document.getElementById('generationProgress').classList.remove('active');
+                            showFinalVideo(progress.videoUrl);
+                        }, 2000);
+                    } else if (progress.status === 'failed') {
+                        clearInterval(interval);
+                        updateStatus('error', 'Generation failed');
+                        document.getElementById('generationProgress').classList.remove('active');
+                    }
+                } catch (error) {
+                    console.error('Progress check failed:', error);
+                }
+            }, 3000);
+        }
+        
+        function renderSegmentList(segments) {
+            const container = document.getElementById('segmentList');
+            container.innerHTML = segments.map((seg, i) => `
+                <div class="segment-item">
+                    <div class="segment-status ${seg.status}" id="segment-status-${i}"></div>
+                    <span>Segment ${i + 1}: ${seg.prompt.substring(0, 50)}...</span>
+                </div>
+            `).join('');
+        }
+        
+        function updateSegmentStatus(segments) {
+            segments.forEach((seg, i) => {
+                const statusEl = document.getElementById(`segment-status-${i}`);
+                if (statusEl) {
+                    statusEl.className = `segment-status ${seg.status}`;
+                }
+            });
+        }
+        
+        function updateGenerationProgress(percent, status) {
+            document.getElementById('progressPercent').textContent = `${percent}%`;
+            document.getElementById('progressStatus').textContent = status;
+            
+            const circumference = 339.292;
+            const offset = circumference - (percent / 100) * circumference;
+            document.getElementById('progressCircle').style.strokeDashoffset = offset;
+        }
+        
+        function showFinalVideo(videoUrl) {
+            alert(`Video ready! URL: ${videoUrl}\n\nDownload functionality coming soon!`);
+        }
+        
+        // ═══════════════════════════════════════════════════════════════
+        // HELPER FUNCTIONS (from audio1tv-v2.html)
+        // ═══════════════════════════════════════════════════════════════
+        
+        function detectBeats(channelData, sampleRate) {
+            const beats = [];
+            const windowSize = Math.floor(sampleRate * 0.05);
+            const hopSize = Math.floor(windowSize / 2);
+            
+            const energies = [];
+            for (let i = 0; i < channelData.length - windowSize; i += hopSize) {
+                let energy = 0;
+                for (let j = 0; j < windowSize; j++) {
+                    energy += channelData[i + j] ** 2;
+                }
+                energies.push(energy / windowSize);
+            }
+            
+            const threshold = energies.reduce((a, b) => a + b) / energies.length * 1.5;
+            for (let i = 1; i < energies.length - 1; i++) {
+                if (energies[i] > threshold &&
+                    energies[i] > energies[i - 1] &&
+                    energies[i] > energies[i + 1]) {
+                    beats.push((i * hopSize) / sampleRate);
+                }
+            }
+            
+            return beats;
+        }
+        
+        function calculateBPM(beats) {
+            if (beats.length < 2) return 120;
+            const intervals = [];
+            for (let i = 1; i < beats.length; i++) {
+                intervals.push(beats[i] - beats[i - 1]);
+            }
+            const avgInterval = intervals.reduce((a, b) => a + b) / intervals.length;
+            return Math.round(60 / avgInterval);
+        }
+        
+        function computeEnergyCurve(channelData, sampleRate) {
+            const curve = [];
+            const windowSize = Math.floor(sampleRate * 0.1);
+            
+            for (let i = 0; i < channelData.length; i += windowSize) {
+                let energy = 0;
+                const end = Math.min(i + windowSize, channelData.length);
+                for (let j = i; j < end; j++) {
+                    energy += Math.abs(channelData[j]);
+                }
+                curve.push(energy / windowSize);
+            }
+            
+            const max = Math.max(...curve);
+            return curve.map(e => e / max);
+        }
+        
+        function detectStructure(energyCurve, beats, duration) {
+            const structure = [];
+            const segmentDuration = 8;
+            const numSegments = Math.ceil(duration / segmentDuration);
+            
+            for (let i = 0; i < numSegments; i++) {
+                const start = i * segmentDuration;
+                const end = Math.min((i + 1) * segmentDuration, duration);
+                
+                const startIdx = Math.floor((start / duration) * energyCurve.length);
+                const endIdx = Math.floor((end / duration) * energyCurve.length);
+                const segmentEnergy = energyCurve.slice(startIdx, endIdx);
+                const avgEnergy = segmentEnergy.reduce((a, b) => a + b, 0) / segmentEnergy.length;
+                
+                let type = 'verse';
+                if (avgEnergy > 0.8) type = 'drop';
+                else if (avgEnergy > 0.6) type = 'chorus';
+                else if (avgEnergy < 0.3) type = 'intro';
+                
+                structure.push({ startTime: start, endTime: end, type, energy: avgEnergy });
+            }
+            
+            return structure;
+        }
+        
+        function recommendNarrative(analysisData) {
+            const avgEnergy = analysisData.structure.reduce((sum, s) => sum + (s.energy || 0.5), 0) / analysisData.structure.length;
+            const complexity = analysisData.structure.length;
+            
+            if (avgEnergy > 0.8 && complexity <= 3) {
+                return {
+                    name: 'Hyper-Present Hero',
+                    description: 'One dominant visual motif will appear in almost every shot, creating intense focus.',
+                    visualCast: [
+                        { name: 'Neon Hero', color: '#ff006e', presence: 95 },
+                        { name: 'Particle Support', color: '#00ff88', presence: 20 }
+                    ]
+                };
+            } else if (complexity >= 5) {
+                return {
+                    name: 'Episodic Segments',
+                    description: 'Distinct visual chapters will unfold, each with its own unique aesthetic.',
+                    visualCast: [
+                        { name: 'Neon Hero', color: '#ff006e', presence: 33 },
+                        { name: 'Liquid Protagonist', color: '#457b9d', presence: 33 },
+                        { name: 'Particle Ensemble', color: '#00ff88', presence: 33 },
+                        { name: 'Camera Narrator', color: '#00f5ff', presence: 100 }
+                    ]
+                };
+            } else {
+                return {
+                    name: 'Visual Ensemble',
+                    description: 'Multiple visual themes will share equal presence throughout the video.',
+                    visualCast: [
+                        { name: 'Neon Hero', color: '#ff006e', presence: 70 },
+                        { name: 'Liquid Protagonist', color: '#457b9d', presence: 65 },
+                        { name: 'Particle Ensemble', color: '#00ff88', presence: 60 },
+                        { name: 'Glitch Antagonist', color: '#ff0080', presence: 30 }
+                    ]
+                };
+            }
+        }
+        
+        function updateStatus(status, text) {
+            const dot = document.getElementById('aiStatusDot');
+            const textEl = document.getElementById('aiStatusText');
+            dot.className = `status-dot ${status}`;
+            textEl.textContent = text;
+        }
+        
+        function addAIThought(thought) {
+            const container = document.getElementById('aiThoughts');
+            const div = document.createElement('div');
+            div.className = 'animate-fade-in';
+            div.style.cssText = 'font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.5rem;';
+            div.textContent = thought;
+            container.appendChild(div);
+            
+            while (container.children.length > 5) {
+                container.removeChild(container.firstChild);
+            }
+        }
+        
+        function displayAnalysisResults() {
+            document.getElementById('bpmValue').textContent = STATE.bpm;
+            document.getElementById('beatCount').textContent = STATE.beats.length;
+            const avgEnergy = STATE.energyCurve.reduce((a, b) => a + b, 0) / STATE.energyCurve.length;
+            document.getElementById('energyValue').textContent = `${Math.round(avgEnergy * 100)}%`;
+            document.getElementById('duration').textContent = formatTime(STATE.duration);
+            
+            drawBeatMarkers();
+        }
+        
+        function drawBeatMarkers() {
+            const container = document.getElementById('beatMarkers');
+            container.innerHTML = '';
+            
+            STATE.beats.forEach(beatTime => {
+                const marker = document.createElement('div');
+                marker.className = 'beat-marker';
+                marker.style.left = `${(beatTime / STATE.duration) * 100}%`;
+                container.appendChild(marker);
+            });
+        }
+        
+        function formatTime(seconds) {
+            const mins = Math.floor(seconds / 60);
+            const secs = Math.floor(seconds % 60);
+            return `${mins}:${secs.toString().padStart(2, '0')}`;
+        }
+        
+        window.playPause = function() {
+            // Playback logic (same as audio1tv-v2.html)
+        };
+        
+        window.resetPlayback = function() {
+            // Reset logic
+        };
+        
+        function initializeVisualizations() {
+            // Canvas visualization (same as audio1tv-v2.html)
+        }
+        
+        window.showSettings = function() {
+            alert('Settings panel coming soon!');
+        };
+        
+        // Drag & drop
+        const uploadZone = document.getElementById('uploadView');
+        uploadZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadZone.classList.add('dragover');
+        });
+        uploadZone.addEventListener('dragleave', () => {
+            uploadZone.classList.remove('dragover');
+        });
+        uploadZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadZone.classList.remove('dragover');
+            const file = e.dataTransfer.files[0];
+            if (file && file.type.startsWith('audio/')) {
+                const input = document.getElementById('audioInput');
+                const dataTransfer = new DataTransfer();
+                dataTransfer.items.add(file);
+                input.files = dataTransfer.files;
+                handleAudioUpload({ target: input });
+            }
+        });
+    </script>
+</body>
+</html>

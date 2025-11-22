@@ -1,0 +1,514 @@
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- PRE-STAGE ANALYSIS MODAL -->
+<!-- Shows AI's understanding of audio before recipe generation -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+
+<style>
+.analysis-modal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.95);
+    z-index: 10000;
+    overflow-y: auto;
+    padding: 2rem;
+}
+
+.analysis-modal.active {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.analysis-content {
+    background: linear-gradient(135deg, #1a0f2e, #0a0014);
+    border: 3px solid var(--neon-purple);
+    border-radius: 20px;
+    padding: 2rem;
+    max-width: 1200px;
+    width: 100%;
+    box-shadow: 0 0 60px rgba(114, 9, 183, 0.6);
+}
+
+.analysis-header {
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+.analysis-header h2 {
+    font-size: 2rem;
+    background: linear-gradient(135deg, var(--neon-cyan), var(--neon-pink));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 0.5rem;
+}
+
+.analysis-header p {
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 0.9rem;
+}
+
+.analysis-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.analysis-card {
+    background: rgba(114, 9, 183, 0.1);
+    border: 2px solid rgba(114, 9, 183, 0.3);
+    border-radius: 12px;
+    padding: 1.5rem;
+}
+
+.analysis-card h3 {
+    color: var(--neon-cyan);
+    font-size: 1.1rem;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.analysis-card .icon {
+    font-size: 1.5rem;
+}
+
+.stat-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.8rem;
+    padding-bottom: 0.8rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.stat-row:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+    padding-bottom: 0;
+}
+
+.stat-label {
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 0.85rem;
+}
+
+.stat-value {
+    color: var(--neon-green);
+    font-weight: 700;
+    font-size: 1.1rem;
+}
+
+.structure-timeline {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 1rem;
+}
+
+.structure-segment {
+    flex: 1;
+    padding: 0.8rem 0.5rem;
+    background: rgba(0, 245, 255, 0.2);
+    border-radius: 8px;
+    text-align: center;
+    font-size: 0.75rem;
+    color: var(--neon-cyan);
+    border: 1px solid rgba(0, 245, 255, 0.4);
+}
+
+.structure-segment.chorus {
+    background: rgba(255, 0, 110, 0.2);
+    border-color: rgba(255, 0, 110, 0.4);
+    color: var(--neon-pink);
+}
+
+.structure-segment.buildup {
+    background: rgba(255, 190, 11, 0.2);
+    border-color: rgba(255, 190, 11, 0.4);
+    color: #ffbe0b;
+}
+
+.structure-segment.drop {
+    background: rgba(0, 255, 136, 0.2);
+    border-color: rgba(0, 255, 136, 0.4);
+    color: var(--neon-green);
+}
+
+.narrative-preview {
+    background: rgba(0, 245, 255, 0.05);
+    border: 2px solid rgba(0, 245, 255, 0.3);
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.narrative-preview h3 {
+    color: var(--neon-cyan);
+    font-size: 1.2rem;
+    margin-bottom: 1rem;
+}
+
+.narrative-type {
+    display: inline-block;
+    padding: 0.5rem 1rem;
+    background: linear-gradient(135deg, var(--neon-purple), var(--neon-pink));
+    border-radius: 20px;
+    font-weight: 700;
+    margin-bottom: 1rem;
+}
+
+.visual-characters {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin-top: 1rem;
+}
+
+.character-chip {
+    padding: 0.6rem 1.2rem;
+    background: rgba(114, 9, 183, 0.2);
+    border: 2px solid;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.character-chip .color-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+}
+
+.character-chip .presence {
+    color: var(--neon-green);
+    font-weight: 700;
+}
+
+.action-buttons {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+    margin-top: 2rem;
+}
+
+.action-btn {
+    padding: 1rem 2rem;
+    font-size: 1.1rem;
+    font-weight: 700;
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.action-btn.primary {
+    background: linear-gradient(135deg, var(--neon-green), #00b368);
+    color: #000;
+}
+
+.action-btn.primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 30px rgba(0, 255, 136, 0.7);
+}
+
+.action-btn.secondary {
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+}
+
+.action-btn.secondary:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.energy-bar {
+    width: 100%;
+    height: 8px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-top: 0.5rem;
+}
+
+.energy-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--neon-pink), var(--neon-cyan), var(--neon-green));
+    border-radius: 4px;
+    transition: width 0.3s;
+}
+
+.mood-badge {
+    display: inline-block;
+    padding: 0.4rem 0.8rem;
+    background: rgba(0, 245, 255, 0.2);
+    border: 1px solid rgba(0, 245, 255, 0.4);
+    border-radius: 12px;
+    color: var(--neon-cyan);
+    font-size: 0.8rem;
+    margin-right: 0.5rem;
+}
+</style>
+
+<!-- Modal HTML -->
+<div id="analysisModal" class="analysis-modal">
+    <div class="analysis-content">
+        <div class="analysis-header">
+            <h2>🎵 Audio Analysis Complete</h2>
+            <p>Here's what I understand about your music. Ready to generate?</p>
+        </div>
+
+        <!-- Basic Stats Grid -->
+        <div class="analysis-grid">
+            <!-- Audio Metrics Card -->
+            <div class="analysis-card">
+                <h3><span class="icon">📊</span> Audio Metrics</h3>
+                <div class="stat-row">
+                    <span class="stat-label">Duration</span>
+                    <span class="stat-value" id="stat-duration">--</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">BPM</span>
+                    <span class="stat-value" id="stat-bpm">--</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Total Beats</span>
+                    <span class="stat-value" id="stat-beats">--</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Avg Energy</span>
+                    <span class="stat-value" id="stat-energy">--</span>
+                </div>
+                <div class="energy-bar">
+                    <div class="energy-fill" id="energy-fill" style="width: 0%"></div>
+                </div>
+            </div>
+
+            <!-- Song Structure Card -->
+            <div class="analysis-card">
+                <h3><span class="icon">🎼</span> Song Structure</h3>
+                <div class="stat-row">
+                    <span class="stat-label">Sections Detected</span>
+                    <span class="stat-value" id="stat-sections">--</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Complexity</span>
+                    <span class="stat-value" id="stat-complexity">--</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Mood</span>
+                    <div id="mood-badges">
+                        <!-- Badges inserted here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Audio Patterns Card -->
+            <div class="analysis-card">
+                <h3><span class="icon">🎛️</span> Audio Patterns</h3>
+                <div class="stat-row">
+                    <span class="stat-label">Rhythm Complexity</span>
+                    <span class="stat-value" id="stat-rhythm">--</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Harmonic Density</span>
+                    <span class="stat-value" id="stat-harmonic">--</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Spectral Centroid</span>
+                    <span class="stat-value" id="stat-spectral">--</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Structure Timeline -->
+        <div class="analysis-card">
+            <h3><span class="icon">⏱️</span> Structure Timeline</h3>
+            <div class="structure-timeline" id="structure-timeline">
+                <!-- Segments inserted here -->
+            </div>
+        </div>
+
+        <!-- Narrative Preview -->
+        <div class="narrative-preview">
+            <h3>🎬 Recommended Narrative Structure</h3>
+            <div class="narrative-type" id="narrative-type">Visual Ensemble</div>
+            <p id="narrative-description" style="color: rgba(255,255,255,0.8); margin-bottom: 1rem;">
+                Multiple visual themes will share equal presence throughout the video.
+            </p>
+            
+            <h4 style="color: var(--neon-pink); margin-top: 1.5rem; margin-bottom: 0.8rem;">Visual Characters:</h4>
+            <div class="visual-characters" id="visual-characters">
+                <!-- Character chips inserted here -->
+            </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="action-buttons">
+            <button class="action-btn secondary" onclick="closeAnalysisModal()">
+                ← Back to Edit
+            </button>
+            <button class="action-btn primary" onclick="generateFromAnalysis()">
+                Generate Video Recipe →
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+// ANALYSIS MODAL LOGIC
+// ═══════════════════════════════════════════════════════════════
+
+let currentAnalysisData = null;
+
+function showAnalysisModal(analysisData) {
+    currentAnalysisData = analysisData;
+    
+    // Populate basic stats
+    document.getElementById('stat-duration').textContent = `${Math.floor(analysisData.duration / 60)}:${String(Math.floor(analysisData.duration % 60)).padStart(2, '0')}`;
+    document.getElementById('stat-bpm').textContent = analysisData.bpm || 'Unknown';
+    document.getElementById('stat-beats').textContent = analysisData.beats?.length || 0;
+    
+    const avgEnergy = calculateAverageEnergy(analysisData.structure);
+    document.getElementById('stat-energy').textContent = `${Math.round(avgEnergy * 100)}%`;
+    document.getElementById('energy-fill').style.width = `${avgEnergy * 100}%`;
+    
+    // Song structure
+    document.getElementById('stat-sections').textContent = analysisData.structure?.length || 0;
+    
+    const complexity = analysisData.structure?.length >= 5 ? 'High' : 
+                       analysisData.structure?.length >= 3 ? 'Medium' : 'Simple';
+    document.getElementById('stat-complexity').textContent = complexity;
+    
+    // Mood badges
+    const moods = determineMoods(analysisData);
+    const moodContainer = document.getElementById('mood-badges');
+    moodContainer.innerHTML = moods.map(m => `<span class="mood-badge">${m}</span>`).join('');
+    
+    // Audio patterns
+    if (analysisData.audioPatterns) {
+        document.getElementById('stat-rhythm').textContent = Math.round(analysisData.audioPatterns.rhythmComplexity || 0);
+        document.getElementById('stat-harmonic').textContent = Math.round(analysisData.audioPatterns.harmonicComplexity || 0);
+        document.getElementById('stat-spectral').textContent = analysisData.audioPatterns.spectralCentroid || 'N/A';
+    }
+    
+    // Structure timeline
+    const timeline = document.getElementById('structure-timeline');
+    timeline.innerHTML = analysisData.structure?.map(section => {
+        const width = ((section.end - section.start) / analysisData.duration) * 100;
+        return `<div class="structure-segment ${section.type}" style="flex-basis: ${width}%">${section.type.toUpperCase()}</div>`;
+    }).join('') || '<p>No structure detected</p>';
+    
+    // Narrative recommendation
+    const narrative = recommendNarrative(analysisData);
+    document.getElementById('narrative-type').textContent = narrative.name;
+    document.getElementById('narrative-description').textContent = narrative.description;
+    
+    // Visual characters
+    const characters = narrative.visualCast;
+    const charContainer = document.getElementById('visual-characters');
+    charContainer.innerHTML = characters.map(char => `
+        <div class="character-chip" style="border-color: ${char.color}">
+            <div class="color-dot" style="background: ${char.color}"></div>
+            <span>${char.name}</span>
+            <span class="presence">${char.presence}%</span>
+        </div>
+    `).join('');
+    
+    // Show modal
+    document.getElementById('analysisModal').classList.add('active');
+}
+
+function closeAnalysisModal() {
+    document.getElementById('analysisModal').classList.remove('active');
+}
+
+function generateFromAnalysis() {
+    closeAnalysisModal();
+    
+    // Trigger actual recipe generation
+    console.log('🎬 Generating recipe from analysis:', currentAnalysisData);
+    
+    // TODO: Call recipe generator with currentAnalysisData
+    alert('Recipe generation will be triggered here! (Integrate with Mochi pipeline)');
+}
+
+// ═══════════════════════════════════════════════════════════════
+// HELPER FUNCTIONS
+// ═══════════════════════════════════════════════════════════════
+
+function calculateAverageEnergy(structure) {
+    if (!structure || structure.length === 0) return 0.5;
+    const total = structure.reduce((sum, s) => sum + (s.energy || 0), 0);
+    return total / structure.length;
+}
+
+function determineMoods(analysisData) {
+    const moods = [];
+    const avgEnergy = calculateAverageEnergy(analysisData.structure);
+    const bpm = analysisData.bpm || 120;
+    
+    if (avgEnergy > 0.8 && bpm > 120) moods.push('🔥 Intense');
+    if (avgEnergy > 0.6 && bpm > 110) moods.push('⚡ Energetic');
+    if (avgEnergy < 0.4) moods.push('😌 Chill');
+    if (bpm > 140) moods.push('🏃 Fast');
+    if (bpm < 90) moods.push('🚶 Slow');
+    
+    const hasDrops = analysisData.structure?.some(s => s.type === 'drop');
+    if (hasDrops) moods.push('💥 Drop');
+    
+    return moods.length > 0 ? moods : ['🎵 Balanced'];
+}
+
+function recommendNarrative(analysisData) {
+    const avgEnergy = calculateAverageEnergy(analysisData.structure);
+    const complexity = analysisData.structure?.length || 0;
+    
+    if (avgEnergy > 0.8 && complexity <= 3) {
+        return {
+            name: 'Hyper-Present Hero',
+            description: 'One dominant visual motif will appear in almost every shot, creating intense focus.',
+            visualCast: [
+                { name: 'Neon Hero', color: '#ff006e', presence: 95 },
+                { name: 'Particle Support', color: '#00ff88', presence: 20 }
+            ]
+        };
+    } else if (complexity >= 5) {
+        return {
+            name: 'Episodic Segments',
+            description: 'Distinct visual chapters will unfold, each with its own unique aesthetic.',
+            visualCast: [
+                { name: 'Neon Hero', color: '#ff006e', presence: 33 },
+                { name: 'Liquid Protagonist', color: '#457b9d', presence: 33 },
+                { name: 'Particle Ensemble', color: '#00ff88', presence: 33 },
+                { name: 'Camera Narrator', color: '#00f5ff', presence: 100 }
+            ]
+        };
+    } else if (avgEnergy > 0.5 && complexity >= 4) {
+        return {
+            name: 'Parallel Narratives',
+            description: 'Two visual stories will alternate and converge, creating dynamic contrast.',
+            visualCast: [
+                { name: 'Neon Hero', color: '#ff006e', presence: 50 },
+                { name: 'Liquid Protagonist', color: '#457b9d', presence: 50 },
+                { name: 'Glitch Bridge', color: '#ff0080', presence: 20 }
+            ]
+        };
+    } else {
+        return {
+            name: 'Visual Ensemble',
+            description: 'Multiple visual themes will share equal presence throughout the video.',
+            visualCast: [
+                { name: 'Neon Hero', color: '#ff006e', presence: 70 },
+                { name: 'Liquid Protagonist', color: '#457b9d', presence: 65 },
+                { name: 'Particle Ensemble', color: '#00ff88', presence: 60 },
+                { name: 'Glitch Antagonist', color: '#ff0080', presence: 30 }
+            ]
+        };
+    }
+}
+</script>

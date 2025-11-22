@@ -1,0 +1,925 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>$SOLQUEEF - Sprite Engine</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Comic Sans MS', 'Arial', sans-serif;
+            background: linear-gradient(135deg, #14F195 0%, #9945FF 50%, #14F195 100%);
+            background-size: 400% 400%;
+            animation: solanaGradient 15s ease infinite;
+            color: #fff;
+            display: flex;
+            gap: 2rem;
+            padding: 2rem;
+            min-height: 100vh;
+        }
+        
+        @keyframes solanaGradient {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        
+        .sidebar {
+            width: 300px;
+            background: rgba(0, 0, 0, 0.9);
+            border-radius: 20px;
+            padding: 1.5rem;
+            border: 3px solid #14F195;
+            box-shadow: 0 0 30px rgba(20, 241, 149, 0.5);
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        
+        .sidebar h2 {
+            color: #FFD700;
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+        
+        .asset-upload {
+            margin-bottom: 2rem;
+        }
+        
+        .upload-zone {
+            border: 3px dashed #9945FF;
+            border-radius: 10px;
+            padding: 2rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-bottom: 1rem;
+        }
+        
+        .upload-zone:hover {
+            border-color: #14F195;
+            background: rgba(153, 69, 255, 0.1);
+        }
+        
+        .upload-zone.dragover {
+            background: rgba(20, 241, 149, 0.2);
+            border-color: #FFD700;
+        }
+        
+        .asset-list {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+        
+        .asset-item {
+            background: rgba(153, 69, 255, 0.2);
+            border: 2px solid #9945FF;
+            border-radius: 10px;
+            padding: 0.5rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .asset-item:hover {
+            border-color: #14F195;
+            transform: scale(1.05);
+        }
+        
+        .asset-item .replace-btn {
+            position: absolute;
+            top: 4px;
+            right: 4px;
+            background: #FF006E;
+            border: none;
+            color: white;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            font-size: 14px;
+            cursor: pointer;
+            display: none;
+            opacity: 0.9;
+        }
+        
+        .asset-item:hover .replace-btn {
+            display: block;
+        }
+        
+        .asset-item img {
+            width: 100%;
+            height: 64px;
+            object-fit: contain;
+            image-rendering: pixelated;
+            margin-bottom: 0.3rem;
+        }
+        
+        .asset-label {
+            font-size: 0.8rem;
+            color: #FFD700;
+        }
+        
+        .game-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 1rem;
+        }
+        
+        .logo {
+            font-size: 3rem;
+            font-weight: 900;
+            text-shadow: 0 0 20px #14F195, 4px 4px 0px rgba(0,0,0,0.3);
+        }
+        
+        .game-wrapper {
+            background: rgba(0, 0, 0, 0.9);
+            padding: 2rem;
+            border-radius: 20px;
+            box-shadow: 0 10px 50px rgba(0, 0, 0, 0.5), 0 0 30px rgba(153, 69, 255, 0.5);
+            border: 3px solid #14F195;
+        }
+        
+        .stats {
+            display: flex;
+            gap: 2rem;
+            margin-bottom: 1rem;
+            padding: 1rem;
+            background: linear-gradient(135deg, rgba(153, 69, 255, 0.3), rgba(20, 241, 149, 0.3));
+            border-radius: 10px;
+            justify-content: center;
+        }
+        
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: 900;
+            color: #FFD700;
+            text-shadow: 0 0 10px #FFD700;
+        }
+        
+        canvas {
+            display: block;
+            border-radius: 10px;
+            box-shadow: 0 0 30px rgba(153, 69, 255, 0.5);
+            image-rendering: pixelated;
+            image-rendering: crisp-edges;
+            border: 3px solid #9945FF;
+        }
+        
+        .controls {
+            margin-top: 1rem;
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        
+        button {
+            padding: 0.8rem 1.5rem;
+            background: linear-gradient(135deg, #9945FF, #14F195);
+            border: 3px solid #14F195;
+            color: white;
+            border-radius: 15px;
+            font-family: inherit;
+            font-size: 1rem;
+            font-weight: 900;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        button:hover {
+            transform: translateY(-3px) scale(1.05);
+            box-shadow: 0 8px 30px rgba(20, 241, 149, 0.6);
+        }
+        
+        input[type="file"] {
+            display: none;
+        }
+        
+        .info {
+            margin-top: 1rem;
+            text-align: center;
+            opacity: 0.8;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+    <!-- ASSET MANAGER SIDEBAR -->
+    <div class="sidebar">
+        <h2>🎨 Asset Manager</h2>
+        
+        <div class="asset-upload">
+            <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()">
+                <div>📁 Drop Images Here</div>
+                <div style="font-size: 0.8rem; margin-top: 0.5rem;">or click to browse</div>
+            </div>
+            <input type="file" id="fileInput" accept="image/*" multiple>
+        </div>
+        
+        <h3 style="margin-top: 1rem;">Current Sprites:</h3>
+        <div class="asset-list" id="assetList">
+            <!-- Assets will be populated here -->
+        </div>
+        
+        <div style="margin-top: 2rem; padding: 1rem; background: rgba(255, 215, 0, 0.1); border-radius: 10px; font-size: 0.9rem;">
+            <strong>💡 Pro Tip:</strong><br>
+            Upload 32x32 pixel PNG images for best results. Click any slot to replace! Your sprites are auto-saved.
+        </div>
+        
+        <button onclick="assetManager.clearAll()" style="width: 100%; margin-top: 1rem; padding: 0.8rem; background: rgba(255, 0, 110, 0.3); border-color: #FF006E;">
+            🗑️ CLEAR ALL
+        </button>
+    </div>
+
+    <!-- GAME AREA -->
+    <div class="game-container">
+        <div class="header">
+            <div class="logo">⚡ $SOLQUEEF 💨</div>
+            <div style="font-size: 1.2rem; margin-top: 0.5rem;">Sprite-Powered Game Engine</div>
+        </div>
+        
+        <div class="game-wrapper">
+            <div class="stats">
+                <div>
+                    <div style="font-size: 0.8rem; opacity: 0.8;">$QUEEF EARNED</div>
+                    <div class="stat-value" id="score">0</div>
+                </div>
+                <div>
+                    <div style="font-size: 0.8rem; opacity: 0.8;">LIVES</div>
+                    <div class="stat-value" id="lives">❤️ ❤️ ❤️</div>
+                </div>
+                <div>
+                    <div style="font-size: 0.8rem; opacity: 0.8;">LEVEL</div>
+                    <div class="stat-value" id="level">1</div>
+                </div>
+            </div>
+            
+            <canvas id="gameCanvas" width="608" height="704"></canvas>
+            
+            <div class="controls">
+                <button onclick="game.start()" id="startBtn">🚀 START</button>
+                <button onclick="game.pause()" id="pauseBtn">⏸️ PAUSE</button>
+                <button onclick="game.restart()">🔄 RESTART</button>
+                <button onclick="exportAssets()">💾 EXPORT</button>
+            </div>
+            
+            <div class="info">
+                🎮 Arrow Keys / WASD • 🎨 Drag & drop images to replace sprites<br>
+                Built with ThunderEngine • Zero Dependencies
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ============================================
+        // THUNDERENGINE - SPRITE ASSET MANAGER
+        // ============================================
+        
+        class AssetManager {
+            constructor() {
+                this.assets = {
+                    player: null,
+                    ghost1: null,
+                    ghost2: null,
+                    ghost3: null,
+                    ghost4: null,
+                    wall: null,
+                    coin: null,
+                    powerCoin: null
+                };
+                
+                this.loadFromStorage();
+                this.setupUpload();
+                this.renderAssetList();
+            }
+            
+            setupUpload() {
+                const zone = document.getElementById('uploadZone');
+                const input = document.getElementById('fileInput');
+                
+                // Drag & drop
+                zone.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    zone.classList.add('dragover');
+                });
+                
+                zone.addEventListener('dragleave', () => {
+                    zone.classList.remove('dragover');
+                });
+                
+                zone.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    zone.classList.remove('dragover');
+                    this.handleFiles(e.dataTransfer.files);
+                });
+                
+                // File input
+                input.addEventListener('change', (e) => {
+                    this.handleFiles(e.target.files);
+                });
+            }
+            
+            handleFiles(files) {
+                Array.from(files).forEach((file, index) => {
+                    if (!file.type.startsWith('image/')) return;
+                    
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        const img = new Image();
+                        img.onload = () => {
+                            // Auto-assign to next available slot
+                            const slots = ['player', 'ghost1', 'ghost2', 'ghost3', 'ghost4', 'coin', 'powerCoin', 'wall'];
+                            const emptySlot = slots.find(slot => !this.assets[slot]);
+                            
+                            if (emptySlot) {
+                                this.assets[emptySlot] = img;
+                                this.saveToStorage();
+                                this.renderAssetList();
+                                
+                                // Notify game to update
+                                if (window.game) {
+                                    game.updateAssets();
+                                }
+                            }
+                        };
+                        img.src = e.target.result;
+                    };
+                    reader.readAsDataURL(file);
+                });
+            }
+            
+            renderAssetList() {
+                const list = document.getElementById('assetList');
+                list.innerHTML = '';
+                
+                Object.entries(this.assets).forEach(([key, img]) => {
+                    const item = document.createElement('div');
+                    item.className = 'asset-item';
+                    item.style.position = 'relative';
+                    
+                    if (img) {
+                        item.innerHTML = `
+                            <button class="replace-btn" title="Replace ${key}">🔄</button>
+                            <img src="${img.src}" alt="${key}">
+                            <div class="asset-label">${key}</div>
+                        `;
+                        
+                        // Add replace button click handler
+                        const replaceBtn = item.querySelector('.replace-btn');
+                        replaceBtn.addEventListener('click', (e) => {
+                            e.stopPropagation();
+                            const input = document.createElement('input');
+                            input.type = 'file';
+                            input.accept = 'image/*';
+                            input.onchange = (e) => {
+                                const file = e.target.files[0];
+                                if (file) this.replaceAsset(key, file);
+                            };
+                            input.click();
+                        });
+                    } else {
+                        item.innerHTML = `
+                            <div style="height: 64px; display: flex; align-items: center; justify-content: center; color: #666;">
+                                Empty
+                            </div>
+                            <div class="asset-label">${key}</div>
+                        `;
+                    }
+                    
+                    // Click to add/replace
+                    item.addEventListener('click', () => {
+                        const input = document.createElement('input');
+                        input.type = 'file';
+                        input.accept = 'image/*';
+                        input.onchange = (e) => {
+                            const file = e.target.files[0];
+                            if (file) this.replaceAsset(key, file);
+                        };
+                        input.click();
+                    });
+                    
+                    list.appendChild(item);
+                });
+            }
+            
+            getAsset(key) {
+                return this.assets[key];
+            }
+            
+            loadFromStorage() {
+                try {
+                    const saved = localStorage.getItem('solqueef_assets');
+                    if (saved) {
+                        const data = JSON.parse(saved);
+                        Object.entries(data).forEach(([key, src]) => {
+                            if (src) {
+                                const img = new Image();
+                                img.onload = () => {
+                                    this.assets[key] = img;
+                                    this.renderAssetList();
+                                    if (window.game) game.updateAssets();
+                                };
+                                img.src = src;
+                            }
+                        });
+                    }
+                } catch (e) {
+                    console.warn('Failed to load assets from storage:', e);
+                }
+            }
+            
+            saveToStorage() {
+                try {
+                    const data = {};
+                    Object.entries(this.assets).forEach(([key, img]) => {
+                        if (img) {
+                            data[key] = img.src;
+                        }
+                    });
+                    localStorage.setItem('solqueef_assets', JSON.stringify(data));
+                } catch (e) {
+                    console.warn('Failed to save assets to storage:', e);
+                }
+            }
+            
+            replaceAsset(key, file) {
+                if (!file.type.startsWith('image/')) return;
+                
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        this.assets[key] = img;
+                        this.saveToStorage();
+                        this.renderAssetList();
+                        if (window.game) {
+                            game.updateAssets();
+                        }
+                    };
+                    img.src = e.target.result;
+                };
+                reader.readAsDataURL(file);
+            }
+            
+            clearAsset(key) {
+                this.assets[key] = null;
+                this.saveToStorage();
+                this.renderAssetList();
+                if (window.game) game.updateAssets();
+            }
+            
+            clearAll() {
+                if (confirm('Clear all sprites? This cannot be undone.')) {
+                    Object.keys(this.assets).forEach(key => {
+                        this.assets[key] = null;
+                    });
+                    localStorage.removeItem('solqueef_assets');
+                    this.renderAssetList();
+                    if (window.game) game.updateAssets();
+                }
+            }
+        }
+        
+        // ============================================
+        // GAME ENGINE WITH SPRITE SUPPORT
+        // ============================================
+        
+        class SpriteGame {
+            constructor(canvas, assetManager) {
+                this.canvas = canvas;
+                this.ctx = canvas.getContext('2d');
+                this.assetManager = assetManager;
+                this.entities = new Map();
+                this.running = false;
+                this.paused = false;
+                this.lastTime = 0;
+                this.tileSize = 32;
+                
+                this.state = {
+                    score: 0,
+                    lives: 3,
+                    level: 1,
+                    status: 'idle',
+                    pillsRemaining: 0,
+                    powerUpActive: false,
+                    powerUpTimer: 0
+                };
+                
+                // Same map as before
+                this.map = [
+                    [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+                    [0,1,1,1,1,1,1,1,1,0,1,1,1,1,1,1,1,1,0],
+                    [0,3,0,0,1,0,0,0,1,0,1,0,0,0,1,0,0,3,0],
+                    [0,1,0,0,1,0,0,0,1,0,1,0,0,0,1,0,0,1,0],
+                    [0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0],
+                    [0,1,0,0,1,0,1,0,0,0,0,0,1,0,1,0,0,1,0],
+                    [0,1,1,1,1,0,1,1,1,0,1,1,1,0,1,1,1,1,0],
+                    [0,0,0,0,1,0,0,0,2,0,2,0,0,0,1,0,0,0,0],
+                    [2,2,2,0,1,0,2,2,2,5,2,2,2,0,1,0,2,2,2],
+                    [0,0,0,0,1,0,2,0,5,5,5,0,2,0,1,0,0,0,0],
+                    [2,2,2,2,1,2,2,0,0,0,0,0,2,2,1,2,2,2,2],
+                    [0,0,0,0,1,0,2,0,0,0,0,0,2,0,1,0,0,0,0],
+                    [2,2,2,0,1,0,2,2,2,2,2,2,2,0,1,0,2,2,2],
+                    [0,0,0,0,1,0,1,0,0,0,0,0,1,0,1,0,0,0,0],
+                    [0,1,1,1,1,1,1,1,1,0,1,1,1,1,1,1,1,1,0],
+                    [0,1,0,0,1,0,0,0,1,0,1,0,0,0,1,0,0,1,0],
+                    [0,3,1,0,1,1,1,1,1,4,1,1,1,1,1,0,1,3,0],
+                    [0,0,1,0,1,0,1,0,0,0,0,0,1,0,1,0,1,0,0],
+                    [0,1,1,1,1,0,1,1,1,0,1,1,1,0,1,1,1,1,0],
+                    [0,1,0,0,0,0,0,0,1,0,1,0,0,0,0,0,0,1,0],
+                    [0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0],
+                    [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+                ];
+                
+                this.mapWidth = this.map[0].length;
+                this.mapHeight = this.map.length;
+                
+                this.initEntities();
+                this.setupInput();
+            }
+            
+            initEntities() {
+                for (let y = 0; y < this.mapHeight; y++) {
+                    for (let x = 0; x < this.mapWidth; x++) {
+                        if (this.map[y][x] === 4) {
+                            this.player = {
+                                x, y, dx: 1, dy: 0,
+                                targetDx: 1, targetDy: 0,
+                                speed: 3,
+                                spriteKey: 'player'
+                            };
+                        } else if (this.map[y][x] === 5) {
+                            const ghostNum = this.entities.size + 1;
+                            this.entities.set(`ghost${ghostNum}`, {
+                                type: 'ghost',
+                                x, y, dx: -1, dy: 0,
+                                speed: 2,
+                                spriteKey: `ghost${ghostNum}`,
+                                frightened: false
+                            });
+                        }
+                    }
+                }
+                this.state.pillsRemaining = this.countPills();
+            }
+            
+            countPills() {
+                let count = 0;
+                for (let y = 0; y < this.mapHeight; y++) {
+                    for (let x = 0; x < this.mapWidth; x++) {
+                        if (this.map[y][x] === 1 || this.map[y][x] === 3) count++;
+                    }
+                }
+                return count;
+            }
+            
+            setupInput() {
+                window.addEventListener('keydown', (e) => {
+                    if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+                        e.preventDefault();
+                    }
+                    
+                    if (this.state.status === 'playing') {
+                        if (e.key === 'ArrowUp' || e.key === 'w') {
+                            this.player.targetDx = 0; this.player.targetDy = -1;
+                        } else if (e.key === 'ArrowDown' || e.key === 's') {
+                            this.player.targetDx = 0; this.player.targetDy = 1;
+                        } else if (e.key === 'ArrowLeft' || e.key === 'a') {
+                            this.player.targetDx = -1; this.player.targetDy = 0;
+                        } else if (e.key === 'ArrowRight' || e.key === 'd') {
+                            this.player.targetDx = 1; this.player.targetDy = 0;
+                        }
+                    }
+                });
+            }
+            
+            start() {
+                this.state.status = 'playing';
+                this.running = true;
+                this.lastTime = performance.now();
+                document.getElementById('startBtn').textContent = '▶️ PLAYING';
+                this.loop(this.lastTime);
+            }
+            
+            pause() {
+                if (this.state.status === 'playing') {
+                    this.paused = true;
+                    this.state.status = 'paused';
+                    document.getElementById('pauseBtn').textContent = '▶️ RESUME';
+                } else if (this.state.status === 'paused') {
+                    this.paused = false;
+                    this.state.status = 'playing';
+                    document.getElementById('pauseBtn').textContent = '⏸️ PAUSE';
+                    this.lastTime = performance.now();
+                }
+            }
+            
+            restart() {
+                this.state = {
+                    score: 0, lives: 3, level: 1,
+                    status: 'idle', pillsRemaining: 0,
+                    powerUpActive: false, powerUpTimer: 0
+                };
+                this.map = this.map.map(row => row.map(tile => tile === 2 ? 1 : tile));
+                this.entities.clear();
+                this.initEntities();
+                this.updateUI();
+                this.render();
+                document.getElementById('startBtn').textContent = '🚀 START';
+            }
+            
+            loop(currentTime) {
+                if (!this.running) return;
+                
+                const deltaTime = Math.min((currentTime - this.lastTime) / 1000, 0.1);
+                this.lastTime = currentTime;
+                
+                if (!this.paused) {
+                    this.update(deltaTime);
+                }
+                
+                this.render();
+                requestAnimationFrame((t) => this.loop(t));
+            }
+            
+            update(dt) {
+                if (this.state.status !== 'playing') return;
+                
+                // Update player (same logic as before)
+                const p = this.player;
+                const speed = p.speed * dt;
+                
+                if (p.targetDx !== p.dx || p.targetDy !== p.dy) {
+                    const nextX = p.x + p.targetDx * speed;
+                    const nextY = p.y + p.targetDy * speed;
+                    if (this.canMove(nextX, nextY)) {
+                        p.dx = p.targetDx;
+                        p.dy = p.targetDy;
+                    }
+                }
+                
+                const nextX = p.x + p.dx * speed;
+                const nextY = p.y + p.dy * speed;
+                if (this.canMove(nextX, nextY)) {
+                    p.x = nextX;
+                    p.y = nextY;
+                }
+                
+                if (p.x < 0) p.x = this.mapWidth - 1;
+                if (p.x >= this.mapWidth) p.x = 0;
+                
+                const tileX = Math.floor(p.x);
+                const tileY = Math.floor(p.y);
+                const tile = this.map[tileY][tileX];
+                
+                if (tile === 1) {
+                    this.map[tileY][tileX] = 2;
+                    this.state.score += 10;
+                    this.state.pillsRemaining--;
+                    this.updateUI();
+                } else if (tile === 3) {
+                    this.map[tileY][tileX] = 2;
+                    this.state.score += 100;
+                    this.state.pillsRemaining--;
+                    this.state.powerUpActive = true;
+                    this.state.powerUpTimer = 7;
+                    this.entities.forEach(e => { if (e.type === 'ghost') e.frightened = true; });
+                    this.updateUI();
+                }
+                
+                // Update ghosts
+                this.entities.forEach(ghost => {
+                    if (ghost.type !== 'ghost') return;
+                    
+                    const gSpeed = ghost.speed * dt * (ghost.frightened ? 0.7 : 1);
+                    
+                    if (Math.random() < 0.02) {
+                        const dirs = [{x:1,y:0}, {x:-1,y:0}, {x:0,y:1}, {x:0,y:-1}];
+                        const valid = dirs.filter(d => {
+                            const nx = ghost.x + d.x * 0.5;
+                            const ny = ghost.y + d.y * 0.5;
+                            return this.canMove(nx, ny) && !(d.x === -ghost.dx && d.y === -ghost.dy);
+                        });
+                        if (valid.length) {
+                            const dir = valid[Math.floor(Math.random() * valid.length)];
+                            ghost.dx = dir.x;
+                            ghost.dy = dir.y;
+                        }
+                    }
+                    
+                    const gnextX = ghost.x + ghost.dx * gSpeed;
+                    const gnextY = ghost.y + ghost.dy * gSpeed;
+                    if (this.canMove(gnextX, gnextY)) {
+                        ghost.x = gnextX;
+                        ghost.y = gnextY;
+                    } else {
+                        ghost.dx *= -1;
+                        ghost.dy *= -1;
+                    }
+                    
+                    if (ghost.x < 0) ghost.x = this.mapWidth - 1;
+                    if (ghost.x >= this.mapWidth) ghost.x = 0;
+                });
+                
+                // Collisions
+                this.entities.forEach(ghost => {
+                    if (ghost.type !== 'ghost') return;
+                    const dx = ghost.x - this.player.x;
+                    const dy = ghost.y - this.player.y;
+                    const dist = Math.sqrt(dx*dx + dy*dy);
+                    
+                    if (dist < 0.5) {
+                        if (ghost.frightened) {
+                            ghost.x = 9; ghost.y = 9;
+                            ghost.frightened = false;
+                            this.state.score += 500;
+                            this.updateUI();
+                        } else {
+                            this.state.lives--;
+                            this.updateUI();
+                            if (this.state.lives <= 0) {
+                                this.state.status = 'gameover';
+                                this.running = false;
+                                alert('GAME OVER! Score: ' + this.state.score);
+                            } else {
+                                this.player.x = 9; this.player.y = 16;
+                            }
+                        }
+                    }
+                });
+                
+                if (this.state.powerUpActive) {
+                    this.state.powerUpTimer -= dt;
+                    if (this.state.powerUpTimer <= 0) {
+                        this.state.powerUpActive = false;
+                        this.entities.forEach(e => { if (e.type === 'ghost') e.frightened = false; });
+                    }
+                }
+                
+                if (this.state.pillsRemaining === 0) {
+                    this.state.status = 'victory';
+                    this.running = false;
+                    alert('VICTORY! Score: ' + this.state.score);
+                }
+            }
+            
+            canMove(x, y) {
+                const tileX = Math.floor(x);
+                const tileY = Math.floor(y);
+                if (tileX < 0 || tileX >= this.mapWidth || tileY < 0 || tileY >= this.mapHeight) {
+                    return false;
+                }
+                return this.map[tileY][tileX] !== 0;
+            }
+            
+            render() {
+                const ctx = this.ctx;
+                const ts = this.tileSize;
+                
+                // Background
+                const gradient = ctx.createLinearGradient(0, 0, this.canvas.width, this.canvas.height);
+                gradient.addColorStop(0, '#000814');
+                gradient.addColorStop(1, '#001D3D');
+                ctx.fillStyle = gradient;
+                ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+                
+                // Draw map
+                for (let y = 0; y < this.mapHeight; y++) {
+                    for (let x = 0; x < this.mapWidth; x++) {
+                        const tile = this.map[y][x];
+                        
+                        if (tile === 0) {
+                            // Walls
+                            const wallImg = this.assetManager.getAsset('wall');
+                            if (wallImg) {
+                                ctx.drawImage(wallImg, x * ts, y * ts, ts, ts);
+                            } else {
+                                const wallGrad = ctx.createLinearGradient(x*ts, y*ts, x*ts+ts, y*ts+ts);
+                                wallGrad.addColorStop(0, '#9945FF');
+                                wallGrad.addColorStop(1, '#14F195');
+                                ctx.fillStyle = wallGrad;
+                                ctx.fillRect(x * ts, y * ts, ts, ts);
+                            }
+                        } else if (tile === 1) {
+                            // Coins
+                            const coinImg = this.assetManager.getAsset('coin');
+                            if (coinImg) {
+                                ctx.drawImage(coinImg, x * ts + 8, y * ts + 8, 16, 16);
+                            } else {
+                                ctx.fillStyle = '#FFD700';
+                                ctx.beginPath();
+                                ctx.arc(x * ts + ts/2, y * ts + ts/2, 4, 0, Math.PI * 2);
+                                ctx.fill();
+                            }
+                        } else if (tile === 3) {
+                            // Power coins
+                            const powerImg = this.assetManager.getAsset('powerCoin');
+                            if (powerImg) {
+                                ctx.save();
+                                ctx.translate(x * ts + ts/2, y * ts + ts/2);
+                                ctx.rotate(Date.now() / 500);
+                                ctx.drawImage(powerImg, -ts/2, -ts/2, ts, ts);
+                                ctx.restore();
+                            } else {
+                                ctx.save();
+                                ctx.translate(x * ts + ts/2, y * ts + ts/2);
+                                ctx.rotate(Date.now() / 500);
+                                ctx.fillStyle = '#14F195';
+                                ctx.fillRect(-7, -7, 14, 14);
+                                ctx.restore();
+                            }
+                        }
+                    }
+                }
+                
+                // Draw player
+                const playerImg = this.assetManager.getAsset('player');
+                if (playerImg) {
+                    ctx.drawImage(playerImg, 
+                        this.player.x * ts, 
+                        this.player.y * ts, 
+                        ts, ts);
+                } else {
+                    ctx.fillStyle = '#FFD700';
+                    ctx.beginPath();
+                    ctx.arc(this.player.x * ts + ts/2, this.player.y * ts + ts/2, ts/2 - 2, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                
+                // Draw ghosts
+                this.entities.forEach(ghost => {
+                    if (ghost.type === 'ghost') {
+                        const ghostImg = this.assetManager.getAsset(ghost.spriteKey);
+                        
+                        ctx.save();
+                        if (ghost.frightened) {
+                            ctx.filter = 'blur(2px)';
+                            ctx.globalAlpha = 0.5;
+                        }
+                        
+                        if (ghostImg) {
+                            ctx.drawImage(ghostImg, ghost.x * ts, ghost.y * ts, ts, ts);
+                        } else {
+                            ctx.fillStyle = ghost.frightened ? '#0000FF' : '#FF69B4';
+                            ctx.beginPath();
+                            ctx.arc(ghost.x * ts + ts/2, ghost.y * ts + ts/2, ts/2 - 2, 0, Math.PI * 2);
+                            ctx.fill();
+                        }
+                        ctx.restore();
+                    }
+                });
+            }
+            
+            updateAssets() {
+                // Called when assets change
+                this.render();
+            }
+            
+            updateUI() {
+                document.getElementById('score').textContent = this.state.score;
+                document.getElementById('lives').textContent = '❤️ '.repeat(this.state.lives);
+                document.getElementById('level').textContent = this.state.level;
+            }
+        }
+        
+        // Export function
+        function exportAssets() {
+            const data = {
+                sprites: {},
+                map: game.map,
+                timestamp: new Date().toISOString()
+            };
+            
+            Object.entries(assetManager.assets).forEach(([key, img]) => {
+                if (img) {
+                    data.sprites[key] = img.src;
+                }
+            });
+            
+            const json = JSON.stringify(data, null, 2);
+            const blob = new Blob([json], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'solqueef-assets.json';
+            a.click();
+        }
+        
+        // Initialize
+        const assetManager = new AssetManager();
+        const canvas = document.getElementById('gameCanvas');
+        const game = new SpriteGame(canvas, assetManager);
+        game.render();
+    </script>
+</body>
+</html>

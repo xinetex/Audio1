@@ -1,0 +1,15 @@
+{
+  "name": "@thunderverse/runtime",
+  "version": "1.0.0",
+  "description": "ThunderEngine - Game runtime for mini-games",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "clean": "rm -rf dist"
+  },
+  "keywords": ["game", "engine", "pacman", "thunderverse"],
+  "author": "ThunderVerse",
+  "license": "MIT"
+}
