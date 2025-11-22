@@ -8,7 +8,7 @@
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
-    "db:migrate": "node dist/database/migrate.js",
+    "db:migrate": "tsx database/migrate.ts",
     "bot:discord": "node dist/bots/discord-bot.js",
     "bot:twitter": "node dist/bots/twitter-bot.js"
   },
